@@ -1,0 +1,8 @@
+/Dataset/Benchmarks/Opportunity/OpportunityUCIDataset/OpportunityUCIDataset/*
+/Dataset/Benchmarks/PAMAP2/PAMAP2_Dataset/PAMAP2_Dataset/*
+/Dataset/Benchmarks/USC_HAD/USC-HAD/USC-HAD/*
+/Dataset/Benchmarks/WISDM/WISDM_ar_v1.1/WISDM_ar_v1.1/*
+/Dataset/Benchmarks/WISDM2/WISDM2_at_latest/home/share/data/public_sets/WISDM_at_v2.0/*
+/Dataset/UEA/*
+**/_pycache_
+*.npy
