@@ -4,5 +4,5 @@
 /Dataset/Benchmarks/WISDM/WISDM_ar_v1.1/WISDM_ar_v1.1/*
 /Dataset/Benchmarks/WISDM2/WISDM2_at_latest/home/share/data/public_sets/WISDM_at_v2.0/*
 /Dataset/UEA/*
-**/_pycache_
+**/__pycache__
 *.npy
