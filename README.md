@@ -15,13 +15,14 @@ UEA: [Here](https://www.timeseriesclassification.com/aeon-toolkit/Archives/Multi
 
 Copy the datasets folder to: Datasets/UEA/
 
+The Datasets of the Benchmarks should be downloaded by running `downloader.py`.
+
 ## Setup
 
-_Instructions refer to Unix-based systems (e.g. Linux, MacOS)._
-
-This code has been tested with `Python 3.7` and `3.8`.
+only use `Python 3.8`, Linux
 
 `pip install -r requirements.txt`
+
 
 ## Run
 
