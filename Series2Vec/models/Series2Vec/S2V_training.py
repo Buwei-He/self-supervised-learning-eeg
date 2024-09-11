@@ -61,6 +61,9 @@ class BaseTrainer(object):
 
 
 class S2V_SS_Trainer(BaseTrainer):
+    """
+    For self-supervised learning
+    """
     def __init__(self, *args, **kwargs):
         super(S2V_SS_Trainer, self).__init__(*args, **kwargs)
         self.analyzer = analysis.Analyzer(print_conf_mat=False)
