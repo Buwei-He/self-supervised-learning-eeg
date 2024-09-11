@@ -62,7 +62,14 @@ class BaseTrainer(object):
 
 class S2V_SS_Trainer(BaseTrainer):
     """
-    For self-supervised learning
+    Comment: 
+
+    - Self-supervised learning (on training set);
+
+    - Linear probing is integrated here: make representation (for training and testing set) 
+    every 5 epochs, and output as "\<problem\>_linear_result.txt"
+    
+    -
     """
     def __init__(self, *args, **kwargs):
         super(S2V_SS_Trainer, self).__init__(*args, **kwargs)
@@ -137,6 +144,16 @@ class S2V_SS_Trainer(BaseTrainer):
 
 
 class S2V_S_Trainer(BaseTrainer):
+    """
+    Comment: 
+
+    - Supervised learning (on training set);
+    
+    - Evaluate: calc. loss, and use softmax to get estimated probability of classes;
+
+    - Validate: evaluate on validation set, and save the best model;
+
+    """
     def __init__(self, *args, **kwargs):
         super(S2V_S_Trainer, self).__init__(*args, **kwargs)
         self.analyzer = analysis.Analyzer(print_conf_mat=False)
@@ -241,7 +258,7 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
     return aggr_metrics, best_metrics, best_value
 
 
-def Strain_runner(config, model, trainer, evaluator, path):
+def S_train_runner(config, model, trainer, evaluator, path):
     epochs = config['epochs']
     optimizer = config['optimizer']
     loss_module = config['loss_module']

@@ -70,7 +70,7 @@ def pre_training(config, Data):
     S_val_evaluator = S2V_S_Trainer(SS_Encoder, val_loader, None, config, print_conf_mat=False)
 
     save_path = os.path.join(config['save_dir'], config['problem'] + '_2_model_{}.pth'.format('last'))
-    Strain_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
+    S_train_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
 
     best_Encoder, optimizer, start_epoch = load_model(SS_Encoder, save_path, config['optimizer'])
     best_Encoder.to(config['device'])
@@ -145,7 +145,7 @@ def TS_TCC_pre_training(config, Data):
     S_val_evaluator = TS_TCC_S_Trainer(SS_Encoder, None, val_loader, None, config, print_conf_mat=False)
 
     save_path = os.path.join(config['save_dir'], config['problem'] + '_2_model_{}.pth'.format('last'))
-    Strain_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
+    S_train_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
 
     best_Encoder, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])
     best_Encoder.to(config['device'])
@@ -204,7 +204,7 @@ def TF_C_pre_training(config, Data):
     S_val_evaluator = TF_C_S_Trainer(SS_Encoder, val_loader, None, config, print_conf_mat=False)
 
     save_path = os.path.join(config['save_dir'], config['problem'] + '_2_model_{}.pth'.format('last'))
-    Strain_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
+    S_train_runner(config, SS_Encoder, S_trainer, S_val_evaluator, save_path)
 
     best_Encoder, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])
     best_Encoder.to(config['device'])
@@ -240,7 +240,7 @@ def supervised(config, Data):
     S_val_evaluator = choose_trainer(model, val_loader, None, config, False, 'S')
     save_path = os.path.join(config['save_dir'], config['problem'] + '_model_{}.pth'.format('last'))
 
-    Strain_runner(config, model, S_trainer, S_val_evaluator, save_path)
+    S_train_runner(config, model, S_trainer, S_val_evaluator, save_path)
     best_model, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])
     best_model.to(config['device'])
 
