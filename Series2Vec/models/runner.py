@@ -49,6 +49,7 @@ def pre_training(config, Data):
     SS_Encoder.to(config['device'])
     train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
     test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
+    # clf is CLlassiFier
     clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
     y_hat = clf.predict(test_repr.cpu().detach().numpy())
     LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
@@ -91,7 +92,7 @@ def pre_training(config, Data):
     all_metrics['LP_LGR_ACC'] = LP_acc_test
     return best_aggr_metrics_test, all_metrics
 
-
+# This is not implemented by the author
 def TS_TCC_pre_training(config, Data):
     logger.info("Creating Distance based Self Supervised model ...")
     model = Model_factory(config, Data)
@@ -156,7 +157,7 @@ def TS_TCC_pre_training(config, Data):
     all_metrics['LP_LGR_ACC'] = 0
     return best_aggr_metrics_test, all_metrics
 
-
+# not implemented
 def TF_C_pre_training(config, Data):
     logger.info("Creating Distance based Self Supervised model ...")
     model = Model_factory(config, Data)
@@ -215,7 +216,7 @@ def TF_C_pre_training(config, Data):
     all_metrics['LP_LGR_ACC'] = 0
     return best_aggr_metrics_test, all_metrics
 
-
+# this is shit
 def linear_probing():
     return
 

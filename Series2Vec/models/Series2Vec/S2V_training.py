@@ -151,8 +151,6 @@ class S2V_S_Trainer(BaseTrainer):
     
     - Evaluate: calc. loss, and use softmax to get estimated probability of classes;
 
-    - Validate: evaluate on validation set, and save the best model;
-
     """
     def __init__(self, *args, **kwargs):
         super(S2V_S_Trainer, self).__init__(*args, **kwargs)
