@@ -17,13 +17,13 @@
     "layers": 4,
     "lr": 0.001,
     "num_heads": 8,
-    "output_dir": "Results/Supervised/Benchmarks/2024-09-14_01-03",
-    "pred_dir": "Results/Supervised/Benchmarks/2024-09-14_01-03/predictions",
+    "output_dir": "Results/Supervised/Benchmarks/2024-09-14_01-32",
+    "pred_dir": "Results/Supervised/Benchmarks/2024-09-14_01-32/predictions",
     "print_interval": 10,
     "rep_size": 320,
-    "save_dir": "Results/Supervised/Benchmarks/2024-09-14_01-03/checkpoints",
+    "save_dir": "Results/Supervised/Benchmarks/2024-09-14_01-32/checkpoints",
     "seed": 1234,
-    "tensorboard_dir": "Results/Supervised/Benchmarks/2024-09-14_01-03/tb_summaries",
+    "tensorboard_dir": "Results/Supervised/Benchmarks/2024-09-14_01-32/tb_summaries",
     "val_interval": 2,
     "val_ratio": 0.2
 }
