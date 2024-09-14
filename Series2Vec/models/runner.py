@@ -31,6 +31,9 @@ def pre_training(config, Data):
     config['loss_module'] = get_loss_module()
     model.to(config['device'])
 
+    '''
+    the version without fine-tuning
+    '''
     # --------------------------------- Load Data ---------------------------------------------------------------------
     train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
     test_dataset = dataset_class(Data['test_data'], Data['test_label'], config)
@@ -57,6 +60,9 @@ def pre_training(config, Data):
     cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
     print("Confusion Matrix:")
     print(cm)
+    '''
+    the version with fine-tuning
+    '''
     # --------------------------------- Load Data -------------------------------------------------------------
     train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
     val_dataset = dataset_class(Data['val_data'], Data['val_label'], config)

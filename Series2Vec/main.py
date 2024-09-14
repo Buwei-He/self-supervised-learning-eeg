@@ -8,6 +8,8 @@ if __name__ == '__main__':
     config = args.Initialization(args)
 
 for problem in os.listdir(config['data_dir']):
+    if problem == 'downloader.py':
+        continue
     config['problem'] = problem
     print(problem)
     Data = dataloader.data_loader(config)
