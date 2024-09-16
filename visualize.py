@@ -1,3 +1,4 @@
+import os
 
 from models.model_factory import Model_factory
 from Dataset.dataloader import data_loader, dataset_class
@@ -7,8 +8,13 @@ from utils.utils import load_model
 from models.Series2Vec.S2V_training import S2V_make_representation
 
 
+def check_path_exists(path):
+    if not os.path.exists(path):
+        print(f'{path} not exists!\nPlease check \'root_path\' or \'result_path\' ...')
+
+
 def load_config_from_json(root_path, result_path, problem):
-    import os
+    
     import json
     import torch
 
@@ -28,47 +34,51 @@ def load_config_from_json(root_path, result_path, problem):
     return config
 
 
-def visualize_tsne(X, y, n_components=2, n_points=1000, problem="Skoda"):
+def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_points=1000, random_state=1234):
     import os
     import random
-    import pickle
 
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt 
     import seaborn as sns
+
+    from umap import UMAP
     from sklearn.manifold import TSNE
 
+    assert reducer_type in ['tsne', 'umap']
     assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2']
     assert n_components in [2, 3]
-    random.seed(1234)
+    random.seed(random_state)
 
     X_repr = X.cpu().detach().numpy()
     y_repr = y.cpu().detach().numpy()
     sample_idx = random.sample(range(len(y_repr)), min(n_points, len(y_repr)))
 
-    tsne = TSNE(n_components=n_components) 
-    X_tsne = tsne.fit_transform(X_repr[sample_idx, :]) 
+    if reducer_type == 'umap':
+        reducer = UMAP(n_components=n_components) 
+    elif reducer_type == 'tsne':
+        reducer = TSNE(n_components=n_components)
+    X_reduced = reducer.fit_transform(X_repr[sample_idx, :]) 
 
     fig, ax = plt.subplots(figsize=(8, 8)) 
-    data_tsne = np.vstack((X_tsne.T, y_repr[sample_idx])).T
+    data_reduced = np.vstack((X_reduced.T, y_repr[sample_idx])).T
     if n_components == 2:
-        df_tsne = pd.DataFrame(data_tsne, columns=['dim1', 'dim2', 'class'])
-        sns.scatterplot(data=df_tsne, hue='class', x='dim1', y='dim2')
+        df = pd.DataFrame(data_reduced, columns=['dim1', 'dim2', 'class'])
+        sns.scatterplot(data=df, hue='class', x='dim1', y='dim2')
     elif n_components == 3:
         sns.set_style("whitegrid", {'axes.grid' : False})
-        df_tsne = pd.DataFrame(data_tsne, columns=['dim1', 'dim2', 'dim3', 'class']) 
+        df = pd.DataFrame(data_reduced, columns=['dim1', 'dim2', 'dim3', 'class']) 
         ax = plt.axes(projection="3d")
-        ax.scatter(df_tsne['dim1'], df_tsne['dim2'], df_tsne['dim3'], c=df_tsne['class'], marker='o')
+        ax.scatter(df['dim1'], df['dim2'], df['dim3'], c=df['class'], marker='o')
         # Experimental: save the figure to file, for interactive 3d view
-        np.savez_compressed(f'{problem}_tsne.npz', data_tsne)
+        np.savez_compressed(f'{problem}_{reducer_type}_{n_components}d.npz', data_reduced)
      
-    fig.savefig(os.path.join(root_path, f'{problem}_tsne.png'))
-    
+    fig.savefig(os.path.join(root_path, f'{problem}_{reducer_type}_{n_components}d.png'))
 
 
 problem = "Skoda"
-root_path = "/home/shouzheyun/Series2Vec"
+root_path = "/home/buwei/dd2430/self-supervised-learning-eeg/"
 result_path = "Results/Pre_Training/Benchmarks/2024-09-14_18-12"
 config = load_config_from_json(root_path, result_path, problem)
 Data = data_loader(config)
@@ -85,8 +95,12 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=config['batch_size'], 
 SS_Encoder = load_model(model, model_path=config['model_dir'], optimizer=None)  # Loading the model
 SS_Encoder.to(config['device'])
 train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
-# test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
 
 # ------------------------------- Visualize Test ------------------------------
-visualize_tsne(train_repr, train_labels, n_components=3, n_points=1000, problem=problem)
-# visualize_tsne(test_repr.cpu().detach().numpy(), test_labels.cpu().detach().numpy())
+visualize(X=train_repr, 
+          y=train_labels,
+          reducer_type='umap', # 'tsne', 'umap'
+          problem=problem, 
+          n_components=2, # 2, 3
+          n_points=1000
+          )
