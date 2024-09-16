@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from models.Series2Vec.soft_dtw_cuda import SoftDTW
 from models.Series2Vec.fft_filter import filter_frequencies
+from sklearn.linear_model import RidgeClassifier
 
 logger = logging.getLogger('__main__')
 
@@ -370,7 +371,7 @@ def S2V_make_representation(model, data):
         labels = torch.cat(labels, dim=0)
     return out, labels
 
-
+#logistic regression
 def fit_lr(features, y, MAX_SAMPLES=100000):
     # If the training set is too large, subsample MAX_SAMPLES examples
     if features.shape[0] > MAX_SAMPLES:
@@ -388,6 +389,23 @@ def fit_lr(features, y, MAX_SAMPLES=100000):
             max_iter=1000000,
             multi_class='ovr'
         )
+    )
+    pipe.fit(features, y)
+    return pipe
+
+def fit_RidgeClassifier(features, y, MAX_SAMPLES=100000):
+    # If the training set is too large, subsample MAX_SAMPLES examples
+    if features.shape[0] > MAX_SAMPLES:
+        split = train_test_split(
+            features, y,
+            train_size=MAX_SAMPLES, random_state=0, stratify=y
+        )
+        features = split[0]
+        y = split[2]
+
+    pipe = make_pipeline(
+        StandardScaler(),
+        RidgeClassifier()
     )
     pipe.fit(features, y)
     return pipe

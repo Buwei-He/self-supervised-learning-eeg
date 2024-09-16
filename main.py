@@ -8,7 +8,7 @@ if __name__ == '__main__':
     config = args.Initialization(args)
 
 for problem in os.listdir(config['data_dir']):
-    if problem == 'downloader.py':
+    if problem == 'downloader.py' or problem == 'Opportunity' or problem == 'PAMAP2' or problem == 'USC_HAD' or problem == 'WISDM' or problem == 'WISDM2':
         continue
     config['problem'] = problem
     print(problem)
