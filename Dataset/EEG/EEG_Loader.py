@@ -119,7 +119,7 @@ def EEG(duration=10,subset_channel_names=['Cz', 'Pz', 'Fz']):
     if not os.path.exists(current_path +'/EEG_data'):
         os.makedirs(current_path + '/EEG_data/')
         
-    np.save(current_path + '/EEG_data/EEG.npy', Data, allow_pickle=True)
+    np.save(current_path + '/EEG_data/EEG_data.npy', Data, allow_pickle=True)
 
 EEG()
     
