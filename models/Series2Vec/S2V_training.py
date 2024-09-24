@@ -393,6 +393,7 @@ def fit_lr(features, y, MAX_SAMPLES=100000):
     pipe.fit(features, y)
     return pipe
 
+#####
 def fit_RidgeClassifier(features, y, MAX_SAMPLES=100000):
     # If the training set is too large, subsample MAX_SAMPLES examples
     if features.shape[0] > MAX_SAMPLES:

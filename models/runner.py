@@ -52,9 +52,9 @@ def pre_training(config, Data):
     SS_Encoder.to(config['device'])
     train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
     test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
-    # clf is CLlassiFier
-    # clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-    clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+    # clf is ClassiFier
+    clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+    # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
     y_hat = clf.predict(test_repr.cpu().detach().numpy())
     LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
     print('Test_acc:', LP_acc_test)
@@ -96,8 +96,8 @@ def pre_training(config, Data):
 
     best_test_evaluator = S2V_S_Trainer(best_Encoder, test_loader, None, config, print_conf_mat=True)
     best_aggr_metrics_test, all_metrics = best_test_evaluator.evaluate(keep_all=True)
-    all_metrics['LGR_ACC'] = acc_test
-    all_metrics['LP_LGR_ACC'] = LP_acc_test
+    all_metrics['LGR_ACC'] = acc_test #fine-tuning
+    all_metrics['LP_LGR_ACC'] = LP_acc_test #without fine-tuning
     return best_aggr_metrics_test, all_metrics
 
 # This is not implemented by the author

@@ -18,9 +18,8 @@ def load_config_from_json(root_path, result_path, problem):
     import json
     import torch
 
-    assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2']
+    assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2', 'EEG']
     config_path = os.path.join(root_path, result_path, 'configuration.json')
-
     with open(config_path) as f:
         config = json.load(f)
         config['problem'] = problem
@@ -43,11 +42,11 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
     import matplotlib.pyplot as plt 
     import seaborn as sns
 
-    from umap import UMAP
+    from umap import UMAP # pip install umap-learn
     from sklearn.manifold import TSNE
 
     assert reducer_type in ['tsne', 'umap']
-    assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2']
+    assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2', 'EEG']
     assert n_components in [2, 3]
     random.seed(random_state)
 
@@ -74,12 +73,12 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
         # Experimental: save the figure to file, for interactive 3d view
         np.savez_compressed(f'{problem}_{reducer_type}_{n_components}d.npz', data_reduced)
      
-    fig.savefig(os.path.join(root_path, f'{problem}_{reducer_type}_{n_components}d.png'))
+    fig.savefig(os.path.join(root_path, 'visualize', f'{problem}_{reducer_type}_{n_components}d.png'))
 
 
-problem = "Skoda"
-root_path = "/home/buwei/dd2430/self-supervised-learning-eeg/"
-result_path = "Results/Pre_Training/Benchmarks/2024-09-14_18-12"
+problem = "EEG"
+root_path = "/home/shouzheyun/Series2Vec/"
+result_path = "Results/Pre_Training/Benchmarks/2024-09-21_21-02"
 config = load_config_from_json(root_path, result_path, problem)
 Data = data_loader(config)
 model = Model_factory(config, Data)
@@ -99,7 +98,7 @@ train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
 # ------------------------------- Visualize Test ------------------------------
 visualize(X=train_repr, 
           y=train_labels,
-          reducer_type='umap', # 'tsne', 'umap'
+          reducer_type='tsne', # 'tsne', 'umap'
           problem=problem, 
           n_components=2, # 2, 3
           n_points=1000
