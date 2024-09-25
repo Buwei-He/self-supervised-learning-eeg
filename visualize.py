@@ -78,7 +78,7 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
 
 problem = "EEG"
 root_path = "/home/shouzheyun/Series2Vec/"
-result_path = "Results/Pre_Training/Benchmarks/2024-09-21_21-02"
+result_path = "Results/Pre_Training/Benchmarks/2024-09-25_14-29"
 config = load_config_from_json(root_path, result_path, problem)
 Data = data_loader(config)
 model = Model_factory(config, Data)
