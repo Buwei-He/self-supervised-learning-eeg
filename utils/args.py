@@ -62,7 +62,7 @@ def create_dirs(dirs):
 
 
 # -------------------------------------------- Input and Output --------------------------------------------------------
-parser.add_argument('--dataset', default='Benchmarks', choices={'Benchmarks', 'UEA', 'UCR'})
+parser.add_argument('--dataset', default='EEG', choices={'Benchmarks', 'UEA', 'UCR', 'EEG'})
 parser.add_argument('--output_dir', default='Results',
                     help='Root output directory. Must exist. Time-stamped directories will be created inside.')
 parser.add_argument('--Norm', type=bool, default=False, help='Data Normalization')
