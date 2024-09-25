@@ -134,4 +134,3 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
 if __name__ == '__main__':
     root_path = './Dataset/Benchmarks/EEG/'
     EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
-    
