@@ -5,7 +5,9 @@
 /Dataset/Benchmarks/WISDM2/WISDM2_at_latest/home/share/data/public_sets/WISDM_at_v2.0/*
 /Dataset/EEG/EEG/derivatives/*
 /Dataset/UEA/*
+/summary
 **/__pycache__
 *.npy
 *.mat
 *.dat
+

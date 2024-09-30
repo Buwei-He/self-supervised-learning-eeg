@@ -3,6 +3,9 @@ import pandas as pd
 import mne
 import numpy as np
 from sklearn.model_selection import train_test_split
+
+from utils.eeg_utils import map_categories_to_numbers, map_numbers_to_categories
+
 class Patient:
     def __init__(self, participant_id, gender, age, group, MMSE, eeg=None):
         self.participant_id = participant_id
@@ -98,13 +101,6 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
 
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.25)
     return( np.array(X_train), np.array(X_test), np.array(y_train),np.array(y_test))
-
-def map_categories_to_numbers(categories):
-    category_mapping = {'C': 0, 'A': 1, 'F': 2}
-    if isinstance(categories, np.ndarray):
-        return np.array([category_mapping[cat] for cat in categories])
-    else:
-        return category_mapping[categories]
 
 def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, subset_channel_names=['Cz', 'Pz', 'Fz'], label_filter=[]):
     print(f'Current root path (path to EEG dataset): {root_path}')

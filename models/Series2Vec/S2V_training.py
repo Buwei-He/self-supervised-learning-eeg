@@ -4,11 +4,13 @@ import torch
 import numpy as np
 from collections import OrderedDict
 import time
+import shutil
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import torch.fft as fft
 import torch.nn.functional as F
 from utils import utils, analysis
+from utils.eeg_utils import map_categories_to_numbers, map_numbers_to_categories
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -20,6 +22,13 @@ from models.Series2Vec.fft_filter import filter_frequencies
 from sklearn.linear_model import RidgeClassifier
 
 logger = logging.getLogger('__main__')
+
+# Define the TensorBoard log directory
+log_dir = 'summary'
+if os.path.exists(log_dir):
+    shutil.rmtree(log_dir)  # Recursively delete the log directory and its contents
+    print(f"Cleaned up TensorBoard directory: {log_dir}")
+tensorboard_writer = SummaryWriter(log_dir=log_dir)
 
 NEG_METRICS = {'loss'}  # metrics for which "better" is less
 
@@ -129,17 +138,37 @@ class S2V_SS_Trainer(BaseTrainer):
         self.epoch_metrics['epoch'] = epoch_num
         self.epoch_metrics['loss'] = epoch_loss
 
-        if (epoch_num+1) % 5 == 0:
-            self.model.eval()
-            train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
-            test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
-            clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-            y_hat = clf.predict(test_repr.cpu().detach().numpy())
-            acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-            print('Test_acc:', acc_test)
-            result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
-            print('{0}, {1}, {2}'.format(epoch_num, acc_test, epoch_loss), file=result_file)
-            result_file.close()
+        # if (epoch_num+1) % 5 == 0:
+        self.model.eval()
+        train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
+        test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
+        clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+        y_hat = clf.predict(test_repr.cpu().detach().numpy())
+        acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
+        print('Test_acc:', acc_test)
+        result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
+        print('{0}, {1}, {2}'.format(epoch_num, acc_test, epoch_loss), file=result_file)
+        result_file.close()
+
+        # Add to tensorboard
+        # Get unique classes from test_labels
+        unique_classes = np.unique(test_labels.cpu().detach().numpy())
+        # Initialize a dictionary to store class-wise accuracies
+        class_accuracies = {}
+        # Loop through each class and calculate accuracy for that specific class
+        for cls in unique_classes:
+            # Get indices for the current class
+            cls_indices = test_labels.cpu().detach().numpy() == cls
+            # Calculate accuracy for the current class
+            acc_class = accuracy_score(test_labels.cpu().detach().numpy()[cls_indices], y_hat[cls_indices])
+            # Store accuracy in the dictionary
+            if self.problem == 'EEG':
+                class_accuracies[f'class_{map_numbers_to_categories(cls)}'] = acc_class
+            else:
+                class_accuracies[f'class_{cls}'] = acc_class
+        # Log class-wise accuracies to TensorBoard
+        class_accuracies[f'class_all'] = acc_test
+        tensorboard_writer.add_scalars(f'loss/repr_test_acc', class_accuracies, epoch_num+1)
 
         return self.epoch_metrics
 
@@ -263,7 +292,7 @@ def S_train_runner(config, model, trainer, evaluator, path):
     loss_module = config['loss_module']
     start_epoch = 0
     total_start_time = time.time()
-    tensorboard_writer = SummaryWriter('summary')
+    # tensorboard_writer = SummaryWriter('summary')
     best_value = 1e16
     metrics = []  # (for validation) list of lists: for each epoch, stores metrics like loss, ...
     best_metrics = {}
@@ -294,7 +323,7 @@ def SS_train_runner(config, model, trainer, path):
     loss_module = config['loss_module']
     start_epoch = 0
     total_start_time = time.time()
-    tensorboard_writer = SummaryWriter('summary')
+    # tensorboard_writer = SummaryWriter('summary')
     metrics = []  # (for validation) list of lists: for each epoch, stores metrics like loss, ...
     save_best_model = utils.SaveBestModel()
     Total_loss = []
@@ -307,7 +336,8 @@ def SS_train_runner(config, model, trainer, path):
         Total_loss.append(aggr_metrics_train['loss'])
         print_str = 'Epoch {} Training Summary: '.format(epoch)
         for k, v in aggr_metrics_train.items():
-            tensorboard_writer.add_scalar('{}/train'.format(k), v, epoch)
+            if k != 'epoch':
+                tensorboard_writer.add_scalar('{}/train'.format(k), v, epoch)
             print_str += '{}: {:8f} | '.format(k, v)
         logger.info(print_str)
     # plot_loss(Total_loss,Time_loss,Freq_loss)
