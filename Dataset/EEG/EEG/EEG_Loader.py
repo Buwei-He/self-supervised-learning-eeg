@@ -75,7 +75,7 @@ def get_epochs(subject,
     epochs.drop_bad(verbose=0)
     return epochs
 
-def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate):
+def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate, label_filter):
     data=[]
     labels=[]
     wanted_shape=(len(subset_channel_names),1000)
@@ -84,14 +84,15 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     
     for subject in patients_list:
         # Loop through each epoch in the subject's epochs
-        for epoch in subject.epochs:
-            # Select only the required channels using the indices
-            selected_channels_epoch = epoch[index, :]
-            
-            # Check if the selected data matches the wanted shape
-            if selected_channels_epoch.shape == (len(subset_channel_names), int(duration*sample_rate)):
-                data.append(selected_channels_epoch)
-                labels.append(subject.group)
+        if subject.group not in label_filter:
+            for epoch in subject.epochs:
+                # Select only the required channels using the indices
+                selected_channels_epoch = epoch[index, :]
+                
+                # Check if the selected data matches the wanted shape
+                if selected_channels_epoch.shape == (len(subset_channel_names), int(duration*sample_rate)):
+                    data.append(selected_channels_epoch)
+                    labels.append(map_categories_to_numbers(subject.group))
             # else:
                 # print("Problem")
 
@@ -99,13 +100,13 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     return( np.array(X_train), np.array(X_test), np.array(y_train),np.array(y_test))
 
 def map_categories_to_numbers(categories):
-
     category_mapping = {'C': 0, 'A': 1, 'F': 2}
-    mapped_array = np.array([category_mapping[cat] for cat in categories])
-    
-    return mapped_array
+    if isinstance(categories, np.ndarray):
+        return np.array([category_mapping[cat] for cat in categories])
+    else:
+        return category_mapping[categories]
 
-def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, subset_channel_names=['Cz', 'Pz', 'Fz']):
+def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, subset_channel_names=['Cz', 'Pz', 'Fz'], label_filter=[]):
     print(f'Current root path (path to EEG dataset): {root_path}')
     participants_file = os.path.join(root_path, 'participants.tsv')
     
@@ -119,12 +120,12 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         subject.eeg.resample(sample_rate) # downsample to 100hz; which method?
         subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio)
     
-    X_train, X_test, y_train, y_test = get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate)
+    X_train, X_test, y_train, y_test = get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate, label_filter)
     Data = {}
     Data['train_data'] = X_train
-    Data['train_label'] = map_categories_to_numbers(y_train) # ['C','A','F'] -> [0, 1, 2]
+    Data['train_label'] = y_train
     Data['test_data'] = X_test
-    Data['test_label'] = map_categories_to_numbers(y_test)
+    Data['test_label'] = y_test
 
     # if not os.path.exists(root_path):
     #     os.makedirs(root_path)
@@ -132,5 +133,10 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
     np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
 
 if __name__ == '__main__':
-    root_path = './Dataset/Benchmarks/EEG/'
-    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+    root_path = './Dataset/EEG/EEG/'
+    EEG(root_path,
+        duration=10, 
+        sample_rate=100, 
+        overlap_ratio=0, 
+        subset_channel_names=['Fp1', 'Fp2'], # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+        label_filter=['A']) # ['C','A','F'] -> [0, 1, 2]; Use list of letter(s) here;
