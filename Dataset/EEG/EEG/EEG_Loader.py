@@ -91,6 +91,9 @@ def filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class=['A','C',
                 filtered_patients.append(patient)
     return filtered_patients
 
+def z_score(x):
+    # Return the z-score normalisation of x
+    return (x-x.mean())/x.std()
 
 def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate,test_size):
     data_train = []
@@ -150,7 +153,10 @@ def map_categories_to_numbers(categories):
         return category_mapping[categories]
     
 
-def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,test_size=0.25, subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F']):
+def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,test_size=0.25, 
+        subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],
+        normalisation_fun=None #If None then no normalisation, if not None applies this function to eeg data
+        ):
     print(f'Current root path (path to EEG dataset): {root_path}')
     participants_file = os.path.join(root_path, 'participants.tsv')
     
@@ -162,7 +168,13 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,t
     # Downsample the EEG data to 100 Hz and create epochs of 10 seconds
     patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class)
 
+    if not normalisation_fun:
+        # If no normalisation then the function is just the identity function
+        normalisation_fun = lambda x: x
+
     for subject in patients_list_filtered:
+        # Apply normalisation subject wise, across all channels
+        subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
         subject.eeg.resample(sample_rate)
         subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio)
     
@@ -182,5 +194,6 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,t
 
 if __name__ == '__main__':
     root_path = './Dataset/EEG/EEG'
-    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2'],test_size=0.25, MMSE_max_A=20, MMSE_max_F=25,wanted_class=['C','F','A']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],test_size=0.25, MMSE_max_A=30, MMSE_max_F=30,wanted_class=['C','F','A'],
+        normalisation_fun=z_score) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     
