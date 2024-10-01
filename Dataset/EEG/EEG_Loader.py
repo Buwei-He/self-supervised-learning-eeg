@@ -175,5 +175,5 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,t
 
 if __name__ == '__main__':
     root_path = ''
-    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2'], MMSE_max_A=20, MMSE_max_F=25,wanted_class=['A','C','F']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2'],test_size=0.25, MMSE_max_A=20, MMSE_max_F=25,wanted_class=['A','C','F']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     
