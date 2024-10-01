@@ -168,7 +168,7 @@ class S2V_SS_Trainer(BaseTrainer):
                 class_accuracies[f'class_{cls}'] = acc_class
         # Log class-wise accuracies to TensorBoard
         class_accuracies[f'class_all'] = acc_test
-        tensorboard_writer.add_scalars(f'loss/repr_test_acc', class_accuracies, epoch_num+1)
+        tensorboard_writer.add_scalars(f'loss/repr_test_acc', class_accuracies, epoch_num)
 
         return self.epoch_metrics
 

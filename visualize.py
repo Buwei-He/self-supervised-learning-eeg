@@ -23,7 +23,7 @@ def load_config_from_json(root_path, result_path, problem):
     with open(config_path) as f:
         config = json.load(f)
         config['problem'] = problem
-        config['data_dir'] = os.path.join(root_path, 'Dataset/Benchmarks')
+        config['data_dir'] = os.path.join(root_path, 'Dataset/EEG')
         config['output_dir'] = os.path.join(root_path, result_path)
         config['pred_dir'] = os.path.join(root_path, result_path, 'predictions')
         config['save_dir'] = os.path.join(root_path, result_path, 'checkpoints') # saved model path
@@ -78,7 +78,7 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
 
 problem = "EEG"
 root_path = "/home/shouzheyun/Series2Vec/"
-result_path = "Results/Pre_Training/Benchmarks/2024-09-25_14-29"
+result_path = "Results/Pre_Training/EEG/2024-10-01_11-34"
 config = load_config_from_json(root_path, result_path, problem)
 Data = data_loader(config)
 model = Model_factory(config, Data)
@@ -98,7 +98,7 @@ train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
 # ------------------------------- Visualize Test ------------------------------
 visualize(X=train_repr, 
           y=train_labels,
-          reducer_type='tsne', # 'tsne', 'umap'
+          reducer_type='umap', # 'tsne', 'umap'
           problem=problem, 
           n_components=2, # 2, 3
           n_points=1000
