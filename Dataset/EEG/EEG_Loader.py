@@ -22,9 +22,9 @@ def load_participants(file_path):
     return participants_df
 
 
-def load_eeg(participant_id):
+def load_eeg(root_path, participant_id):
     # Define the EEG file path
-    eeg_file = os.path.join('derivatives', participant_id, 'eeg', f"{participant_id}_task-eyesclosed_eeg.set")
+    eeg_file = os.path.join(root_path, 'derivatives', participant_id, 'eeg', f"{participant_id}_task-eyesclosed_eeg.set")
     
     if os.path.exists(eeg_file):
         # Load the EEG data using mne library
@@ -37,7 +37,8 @@ def load_eeg(participant_id):
     else:
         print(f"EEG file for participant {participant_id} not found.")
         return None
-def create_patients_list(participants_df):
+    
+def create_patients_list(root_path, participants_df):
     patients_list = []
     
     for index, row in participants_df.iterrows():
@@ -48,7 +49,7 @@ def create_patients_list(participants_df):
         MMSE = row['MMSE']
         
         # Load the EEG file for this participant
-        eeg = load_eeg(participant_id)
+        eeg = load_eeg(root_path, participant_id)
         
         # Create a Patient object
         patient = Patient(participant_id, gender, age, group, MMSE, eeg)
@@ -60,7 +61,8 @@ def create_patients_list(participants_df):
     return patients_list
 
 def get_epochs(subject, 
-               duration=10 #in seconds
+               duration=10, #in seconds
+               overlap_ratio=0.5
                ):
     eeg = subject.eeg
     # Rename boundary annotations to bad_boundary to drop epochs overlapping with boundary annotations
@@ -68,58 +70,110 @@ def get_epochs(subject,
     if 'boundary' in eeg.annotations.description:
         eeg.annotations.rename(rename_dict)
     # Create epochs
-    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, reject_by_annotation=True, preload=False, verbose=0)
+    overlap = int(overlap_ratio * duration)
+    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, overlap=overlap, reject_by_annotation=True, preload=False, verbose=0) 
     epochs.drop_bad(verbose=0)
+    print(epochs.get_data().shape)
     return epochs
 
-def get_train_and_test_data(patients_list,subset_channel_names=['Cz', 'Pz', 'Fz']):
-    data=[]
-    labels=[]
-    wanted_shape=(len(subset_channel_names),1000)
-    total_channel_names=patients_list[85].eeg.info['ch_names']
+def filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class=['A','C','F']):
+    # Filter patients based on MMSE for group A and C
+    filtered_patients = []
+    for patient in patients_list:
+        if patient.group in wanted_class:
+            if patient.group == 'A' and patient.MMSE <= MMSE_max_A:
+                filtered_patients.append(patient)
+            elif patient.group == 'F' and patient.MMSE <= MMSE_max_F:
+                filtered_patients.append(patient)
+    return filtered_patients
+
+def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate,test_size):
+    data_train = []
+    labels_train = []
+    data_test = []
+    labels_test = []
+    wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
+    
+    # Identify total channel names from a sample subject (assuming uniform channels across subjects)
+    total_channel_names = patients_list[0].eeg.info['ch_names']
     index = [total_channel_names.index(ch) for ch in subset_channel_names if ch in total_channel_names]
     
+    # Separate patients by groups
+    group_dict = {}
     for subject in patients_list:
-        # Loop through each epoch in the subject's epochs
-        for epoch in subject.epochs:
-            # Select only the required channels using the indices
-            selected_channels_epoch = epoch[index, :]
-            
-            # Check if the selected data matches the wanted shape
-            if selected_channels_epoch.shape == (len(subset_channel_names), 1000):
-                data.append(selected_channels_epoch)
-                labels.append(subject.group)
-            else:
-                print("Problem")
+        if subject.group not in group_dict:
+            group_dict[subject.group] = []
+        group_dict[subject.group].append(subject)
+    
+    # Split subjects into training and testing, maintaining balance for each group
+    for group, subjects in group_dict.items():
+        # Split subjects into training and testing sets
+        train_subjects, test_subjects = train_test_split(subjects, test_size=0.25)
+        
+        # Extract epochs data and labels for training subjects
+        for subject in train_subjects:
+            for epoch in subject.epochs:
+                selected_channels_epoch = epoch[index, :]
+                if selected_channels_epoch.shape == wanted_shape:
+                    data_train.append(selected_channels_epoch)
+                    labels_train.append(subject.group)
+                else:
+                    print("PROBLEM WITH SHAPE")
 
-    X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.25,random_state=32)
-    return( np.array(X_train), np.array(X_test), np.array(y_train),np.array(y_test))
+        # Extract epochs data and labels for testing subjects
+        for subject in test_subjects:
+            for epoch in subject.epochs:
+                selected_channels_epoch = epoch[index, :]
+                if selected_channels_epoch.shape == wanted_shape:
+                    data_test.append(selected_channels_epoch)
+                    labels_test.append(subject.group)
+    
+    # Convert lists to numpy arrays
+    X_train = np.array(data_train)
+    X_test = np.array(data_test)
+    y_train = np.array(labels_train)
+    y_test = np.array(labels_test)
+    
+    return X_train, X_test, y_train, y_test
 
+def map_categories_to_numbers(categories):
 
-def EEG(duration=10,subset_channel_names=['Cz', 'Pz', 'Fz']):
-    participants_file = 'participants.tsv'
+    category_mapping = {'C': 0, 'A': 1, 'F': 2}
+    mapped_array = np.array([category_mapping[cat] for cat in categories])
+    
+    return mapped_array
+
+def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,test_size=0.25, subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F']):
+    print(f'Current root path (path to EEG dataset): {root_path}')
+    participants_file = os.path.join(root_path, 'participants.tsv')
     
     # Load the participants data
     participants_df = load_participants(participants_file) #Create the panda dataframe of the file.
 
     # Create the patients list
-    patients_list = create_patients_list(participants_df)
+    patients_list = create_patients_list(root_path, participants_df)
     # Downsample the EEG data to 100 Hz and create epochs of 10 seconds
-    for subject in patients_list:
-        subject.eeg.resample(100)
-        subject.epochs = get_epochs(subject, duration=duration)
+    patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class)
+
+    for subject in patients_list_filtered:
+        subject.eeg.resample(sample_rate)
+        subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio)
     
-    X_train, X_test, y_train, y_test=get_train_and_test_data(patients_list,subset_channel_names=subset_channel_names)
+    # Get train and test data
+    X_train, X_test, y_train, y_test = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, sample_rate,test_size)
+
     Data = {}
     Data['train_data'] = X_train
-    Data['train_label'] = y_train
+    Data['train_label'] = map_categories_to_numbers(y_train) # ['C','A','F'] -> [0, 1, 2]
     Data['test_data'] = X_test
-    Data['test_label'] = y_test
-    current_path = os.getcwd()
-    if not os.path.exists(current_path +'/EEG_data'):
-        os.makedirs(current_path + '/EEG_data/')
+    Data['test_label'] = map_categories_to_numbers(y_test)
+    print(X_train.shape,X_test.shape)
+    # if not os.path.exists(root_path):
+    #     os.makedirs(root_path)
         
-    np.save(current_path + '/EEG_data/EEG_data.npy', Data, allow_pickle=True)
+    np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
 
-EEG()
+if __name__ == '__main__':
+    root_path = ''
+    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Fp1', 'Fp2'], MMSE_max_A=20, MMSE_max_F=25,wanted_class=['A','C','F']) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     
