@@ -82,7 +82,7 @@ parser.add_argument('--batch_size', type=int, default=64, help='Training batch s
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.01, help='Dropout regularization ratio')
 parser.add_argument('--val_interval', type=int, default=2, help='Evaluate on validation every XX epochs. Must be >= 1')
-parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='accuracy',
+parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='loss',
                     help='Metric used for defining best epoch')
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------ System --------------------------------------------------------
