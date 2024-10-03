@@ -188,5 +188,5 @@ if __name__ == '__main__':
     root_path = './Dataset/EEG/EEG'
     EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],
         val_ratio=0.1, test_ratio=0.1, MMSE_max_A=30, MMSE_max_F=30, wanted_class=['C','F','A'],
-        normalisation_fun=z_score, seed=1234) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+        normalisation_fun=z_score, seed=2024) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     

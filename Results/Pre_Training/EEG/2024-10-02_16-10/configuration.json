@@ -1,0 +1,29 @@
+{
+    "Model_Type": [
+        "Series2Vec"
+    ],
+    "Norm": false,
+    "Training_mode": "Pre_Training",
+    "batch_size": 64,
+    "console": false,
+    "data_dir": "/home/pauli/self-supervised-learning-eeg/Dataset/EEG",
+    "dataset": "EEG",
+    "dim_ff": 128,
+    "dropout": 0.01,
+    "emb_size": 8,
+    "epochs": 5,
+    "gpu": 0,
+    "key_metric": "loss",
+    "layers": 3,
+    "lr": 0.01,
+    "num_heads": 8,
+    "output_dir": "Results/Pre_Training/EEG/2024-10-02_16-10",
+    "pred_dir": "Results/Pre_Training/EEG/2024-10-02_16-10/predictions",
+    "print_interval": 10,
+    "rep_size": 160,
+    "save_dir": "Results/Pre_Training/EEG/2024-10-02_16-10/checkpoints",
+    "seed": 1234,
+    "tensorboard_dir": "Results/Pre_Training/EEG/2024-10-02_16-10/tb_summaries",
+    "val_interval": 1,
+    "val_ratio": 0.2
+}
