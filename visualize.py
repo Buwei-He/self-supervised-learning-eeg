@@ -54,7 +54,9 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
     y_repr = y.cpu().detach().numpy()
     sample_idx = random.sample(range(len(y_repr)), min(n_points, len(y_repr)))
 
-    if reducer_type == 'umap':
+    if reducer_type == 'umap' or reducer_type == 'all':
+        visualize(X, y, 'tsne', problem, n_components, n_points, random_state)
+        reducer_type = 'umap'
         reducer = UMAP(n_components=n_components) 
     elif reducer_type == 'tsne':
         reducer = TSNE(n_components=n_components)

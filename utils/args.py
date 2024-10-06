@@ -71,18 +71,18 @@ parser.add_argument('--print_interval', type=int, default=10, help='Print batch 
 # ------------------------------------- Model Parameter and Hyperparameter ---------------------------------------------
 parser.add_argument('--Training_mode', default='Pre_Training', choices={'Pre_Training', 'Linear_Probing', 'Supervised'})
 parser.add_argument('--Model_Type', default=['Series2Vec'], choices={'Series2Vec', 'TS_TCC', 'TF_C'})
-parser.add_argument('--layers', type=int, default=4, help="Number of layers for input conv encoders")
-parser.add_argument('--emb_size', type=int, default=16, help='Internal dimension of transformer embeddings')
-parser.add_argument('--dim_ff', type=int, default=256, help='Dimension of dense feedforward part of transformer layer')
-parser.add_argument('--rep_size', type=int, default=640, help='Representation dimension')
-parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-headed attention heads')
+parser.add_argument('--layers', type=int, default=1, help="Number of layers for input conv encoders")
+parser.add_argument('--emb_size', type=int, default=4, help='Internal dimension of transformer embeddings')
+parser.add_argument('--dim_ff', type=int, default=4, help='Dimension of dense feedforward part of transformer layer')
+parser.add_argument('--rep_size', type=int, default=8, help='Representation dimension')
+parser.add_argument('--num_heads', type=int, default=2, help='Number of multi-headed attention heads')
 # -------------------------------------Training Parameters/ Hyper-Parameters -----------------------------------------
 parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
 parser.add_argument('--batch_size', type=int, default=64, help='Training batch size')
-parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.01, help='Dropout regularization ratio')
-parser.add_argument('--val_interval', type=int, default=2, help='Evaluate on validation every XX epochs. Must be >= 1')
-parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='accuracy',
+parser.add_argument('--val_interval', type=int, default=1, help='Evaluate on validation every XX epochs. Must be >= 1')
+parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='loss',
                     help='Metric used for defining best epoch')
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------ System --------------------------------------------------------
