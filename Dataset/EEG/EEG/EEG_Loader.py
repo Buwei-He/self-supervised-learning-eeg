@@ -194,6 +194,6 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5,t
 
 if __name__ == '__main__':
     root_path = './Dataset/EEG/EEG'
-    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],test_size=0.25, MMSE_max_A=30, MMSE_max_F=30,wanted_class=['C','F','A'],
-        normalisation_fun=z_score) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz','C3','C4'],test_size=0.25, MMSE_max_A=20, MMSE_max_F=25,wanted_class=['C','A'],
+        normalisation_fun=z_score) # 'Cz', 'Pz', 'C3','C4','Fp1','Fp2'
     
