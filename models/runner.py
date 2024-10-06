@@ -50,17 +50,19 @@ def pre_training(config, Data, enable_fine_tuning=True):
     # ---------------------- Loading the model and freezing layers except FC layer -------------------------------------
     SS_Encoder, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])  # Loading the model
     SS_Encoder.to(config['device'])
-    train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
-    test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
-    # clf is ClassiFier
-    clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-    # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-    y_hat = clf.predict(test_repr.cpu().detach().numpy())
-    LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-    print('Test_acc:', LP_acc_test)
-    cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
-    print("Confusion Matrix:")
-    print(cm)
+
+    # train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
+    # test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
+    # # clf is ClassiFier
+    # clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+    # # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+    # y_hat = clf.predict(test_repr.cpu().detach().numpy())
+    # LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
+    # print('Test_acc:', LP_acc_test)
+    # cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
+    # print("Confusion Matrix:")
+    # print(cm)
+    
 
     '''
     the version with fine-tuning

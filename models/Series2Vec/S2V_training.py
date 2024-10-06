@@ -88,40 +88,57 @@ class S2V_SS_Trainer(BaseTrainer):
             self.analyzer = analysis.Analyzer(print_conf_mat=True)
         self.sdtw = SoftDTW(use_cuda=True, gamma=0.1)
 
+    def ss_training_loss_fn(self, model, X, get_all_losses=False):
+        '''
+        Re-formatted version; \n
+        Soft-DTW distance + smooth l1; \n
+        Only for self-supervised pre-training ...
+        '''
+
+        Distance_out, Distance_out_f = model.Pretrain_forward(X.to(self.device))
+        # Create a mask to select only the lower triangular values
+        mask = torch.tril(torch.ones_like(Distance_out), diagonal=-1).bool()
+        Distance_out = torch.masked_select(Distance_out, mask)
+        Distance_out = Distance_normalizer(Distance_out)
+
+        Distance_out_f = torch.masked_select(Distance_out_f, mask)
+        Distance_out_f = Distance_normalizer(Distance_out_f)
+
+        # X_smooth = moving_average_smooth(X, 3)
+
+        Dtw_Distance = cuda_soft_DTW(self.sdtw, X, len(X))
+        Dtw_Distance = Distance_normalizer(Dtw_Distance)
+
+        # Euclidean_Distance = Euclidean_Dis(X, len(X))
+        # Euclidean_Distance = Distance_normalizer(Euclidean_Distance)
+        X_f = filter_frequencies(X)
+        # X_f = fft.fft2(X, dim=(-2, -1))
+        Euclidean_Distance_f = Euclidean_Dis(X_f, len(X_f))
+        Euclidean_Distance_f = Distance_normalizer(Euclidean_Distance_f)
+
+        # temporal_loss = torch.nn.functional.mse_loss(Distance_out, Dtw_Distance)
+        # frequency_loss = torch.nn.functional.mse_loss(Distance_out_f, Euclidean_Distance_f)
+        temporal_loss = F.smooth_l1_loss(Distance_out, Dtw_Distance)
+        frequency_loss = F.smooth_l1_loss(Distance_out_f, Euclidean_Distance_f)
+
+        total_loss = temporal_loss + frequency_loss
+
+        if get_all_losses:
+            return total_loss, temporal_loss, frequency_loss
+        else:
+            return total_loss
+
+
     def train_epoch(self, epoch_num=None):
         self.model = self.model.train()
         epoch_loss = 0  # total loss of epoch
+        train_time_loss = 0
+        train_freq_loss = 0
         total_samples = 0  # total samples in epoch
         for i, batch in enumerate(self.train_loader):
             X, _, IDs = batch
 
-            Distance_out, Distance_out_f = self.model.Pretrain_forward(X.to(self.device))
-            # Create a mask to select only the lower triangular values
-            mask = torch.tril(torch.ones_like(Distance_out), diagonal=-1).bool()
-            Distance_out = torch.masked_select(Distance_out, mask)
-            Distance_out = Distance_normalizer(Distance_out)
-
-            Distance_out_f = torch.masked_select(Distance_out_f, mask)
-            Distance_out_f = Distance_normalizer(Distance_out_f)
-
-            # X_smooth = moving_average_smooth(X, 3)
-
-            Dtw_Distance = cuda_soft_DTW(self.sdtw, X, len(X))
-            Dtw_Distance = Distance_normalizer(Dtw_Distance)
-
-            # Euclidean_Distance = Euclidean_Dis(X, len(X))
-            # Euclidean_Distance = Distance_normalizer(Euclidean_Distance)
-            X_f = filter_frequencies(X)
-            # X_f = fft.fft2(X, dim=(-2, -1))
-            Euclidean_Distance_f = Euclidean_Dis(X_f, len(X_f))
-            Euclidean_Distance_f = Distance_normalizer(Euclidean_Distance_f)
-
-            # temporal_loss = torch.nn.functional.mse_loss(Distance_out, Dtw_Distance)
-            # frequency_loss = torch.nn.functional.mse_loss(Distance_out_f, Euclidean_Distance_f)
-            temporal_loss = F.smooth_l1_loss(Distance_out, Dtw_Distance)
-            frequency_loss = F.smooth_l1_loss(Distance_out_f, Euclidean_Distance_f)
-
-            total_loss = temporal_loss + frequency_loss
+            total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
             # Zero gradients, perform a backward pass, and update the weights.
             self.optimizer.zero_grad()
             total_loss.backward()
@@ -133,44 +150,79 @@ class S2V_SS_Trainer(BaseTrainer):
             with torch.no_grad():
                 total_samples += 1
                 epoch_loss += total_loss.item()
+                train_time_loss += time_loss.item()
+                train_freq_loss += freq_loss.item()
 
         epoch_loss = epoch_loss / total_samples  # average loss per sample for whole epoch
+        train_time_loss = train_time_loss / total_samples
+        train_freq_loss = train_freq_loss / total_samples
         self.epoch_metrics['epoch'] = epoch_num
         self.epoch_metrics['loss'] = epoch_loss
 
         # if (epoch_num+1) % 5 == 0:
-        self.model.eval()
+        self.evaluate(epoch_num=epoch_num, epoch_train_loss=[epoch_loss, time_loss, freq_loss])
+
+        return self.epoch_metrics
+
+
+    def evaluate(self, epoch_num=None, epoch_train_loss=None):
+        '''
+        There is no evaluate process in ss_trainer, implemented to get Soft-DTW related loss on test set only.
+        '''
+        assert(self.test_loader is not None)
+
+        # Soft-DTW related loss on test dataset
+        test_total_loss = 0  
+        test_time_loss = 0  
+        test_freq_loss = 0  
+        total_samples = 0  # total samples in epoch
+
+        self.model = self.model.eval()
+
+        for i, batch in enumerate(self.test_loader):
+            X, _, IDs = batch
+            total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
+            total_samples += 1
+            test_total_loss += total_loss.item()
+            test_time_loss += time_loss.item()
+            test_freq_loss += freq_loss.item()
+        test_total_loss = test_total_loss / total_samples
+        test_time_loss = test_time_loss / total_samples
+        test_freq_loss = test_freq_loss / total_samples
+
+        # downstream task (classification) analysis: accuracy of each class / avg. of all classes
         train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
         test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
         clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+        # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
         y_hat = clf.predict(test_repr.cpu().detach().numpy())
+
         acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-        print('Test_acc:', acc_test)
-        result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
-        print('{0}, {1}, {2}'.format(epoch_num, acc_test, epoch_loss), file=result_file)
-        result_file.close()
+        # print('Test_acc:', acc_test)
+        # result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
+        # print('{0}, {1}, {2}, {3}'.format(epoch_num, acc_test, epoch_train_loss, epoch_test_loss), file=result_file)
+        # result_file.close()
 
         # Add to tensorboard
-        # Get unique classes from test_labels
         unique_classes = np.unique(test_labels.cpu().detach().numpy())
-        # Initialize a dictionary to store class-wise accuracies
         class_accuracies = {}
-        # Loop through each class and calculate accuracy for that specific class
         for cls in unique_classes:
-            # Get indices for the current class
             cls_indices = test_labels.cpu().detach().numpy() == cls
-            # Calculate accuracy for the current class
             acc_class = accuracy_score(test_labels.cpu().detach().numpy()[cls_indices], y_hat[cls_indices])
-            # Store accuracy in the dictionary
             if self.problem == 'EEG':
                 class_accuracies[f'class_{map_numbers_to_categories(cls)}'] = acc_class
             else:
                 class_accuracies[f'class_{cls}'] = acc_class
         # Log class-wise accuracies to TensorBoard
         class_accuracies[f'class_all'] = acc_test
-        tensorboard_writer.add_scalars(f'loss/repr_test_acc', class_accuracies, epoch_num)
-
-        return self.epoch_metrics
+        tensorboard_writer.add_scalars(f'acc/test', class_accuracies, epoch_num)
+        tensorboard_writer.add_scalars(f'loss/test', {'total':test_total_loss}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss/test', {'time':test_time_loss}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss/test', {'freq':test_freq_loss}, epoch_num)
+        if epoch_train_loss is not None:
+            tensorboard_writer.add_scalars(f'loss/train', {'total':epoch_train_loss[0]}, epoch_num) 
+            tensorboard_writer.add_scalars(f'loss/train', {'time':epoch_train_loss[1]}, epoch_num)
+            tensorboard_writer.add_scalars(f'loss/train', {'freq':epoch_train_loss[2]}, epoch_num)
 
 
 class S2V_S_Trainer(BaseTrainer):
@@ -323,7 +375,6 @@ def SS_train_runner(config, model, trainer, path):
     loss_module = config['loss_module']
     start_epoch = 0
     total_start_time = time.time()
-    # tensorboard_writer = SummaryWriter('summary')
     metrics = []  # (for validation) list of lists: for each epoch, stores metrics like loss, ...
     save_best_model = utils.SaveBestModel()
     Total_loss = []
