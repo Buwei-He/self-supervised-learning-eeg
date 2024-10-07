@@ -45,7 +45,7 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
     from umap import UMAP # pip install umap-learn
     from sklearn.manifold import TSNE
 
-    assert reducer_type in ['tsne', 'umap']
+    assert reducer_type in ['tsne', 'umap', 'all']
     assert problem in ['Skoda', 'PAMAP2', 'Oppotunity', 'USC_HAD', 'WISDM', 'WISDM2', 'EEG']
     assert n_components in [2, 3]
     random.seed(random_state)
@@ -80,7 +80,7 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
 
 problem = "EEG"
 root_path = "/home/shouzheyun/Series2Vec/"
-result_path = "Results/Pre_Training/EEG/2024-10-01_11-34"
+result_path = "Results/Pre_Training/EEG/2024-10-01_22-45"
 config = load_config_from_json(root_path, result_path, problem)
 Data = data_loader(config)
 model = Model_factory(config, Data)
@@ -100,8 +100,8 @@ train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
 # ------------------------------- Visualize Test ------------------------------
 visualize(X=train_repr, 
           y=train_labels,
-          reducer_type='umap', # 'tsne', 'umap'
+          reducer_type='tsne', # 'tsne', 'umap''
           problem=problem, 
-          n_components=2, # 2, 3
+          n_components=3, # 2, 3
           n_points=1000
           )

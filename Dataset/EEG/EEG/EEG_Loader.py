@@ -158,14 +158,26 @@ def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
         raise ValueError("Problem in input shape, check code.")
     return data, labels
 
-
 def map_categories_to_numbers(categories):
     category_mapping = {'C': 0, 'A': 1, 'F': 2}
     if isinstance(categories, np.ndarray):
         return np.array([category_mapping[cat] for cat in categories])
     else:
         return category_mapping[categories]
-    
+
+def arg_phaser():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root_path', type=str, default='./Dataset/EEG/EEG', help='duration')
+    parser.add_argument('--duration', type=float, default=10, help='duration')
+    parser.add_argument('--sample_rate', type=float, default=100, help='sample_rate')
+    parser.add_argument('--overlap', type=float, default=0, help='overlap_ratio')
+    parser.add_argument('--channel', type=list, default=['Cz', 'Pz', 'C3', 'C4'], help='subset_channel_names')
+    parser.add_argument('--class', type=list, default=['C', 'A', 'F'], help='wanted_class')
+    parser.add_argument('--max_A', type=int, default=20, help='MMSE_max_A')
+    parser.add_argument('--max_F', type=int, default=25, help='MMSE_max_F')
+    args = parser.parse_args()
+    config = args.args.__dict__
 
 def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, val_ratio=0.1, test_ratio=0.1, 
         subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],

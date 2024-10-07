@@ -50,6 +50,7 @@ def pre_training(config, Data, enable_fine_tuning=True):
     # ---------------------- Loading the model and freezing layers except FC layer -------------------------------------
     SS_Encoder, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])  # Loading the model
     SS_Encoder.to(config['device'])
+
     train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
     test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
     # clf is ClassiFier
@@ -61,6 +62,7 @@ def pre_training(config, Data, enable_fine_tuning=True):
     cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
     print("Confusion Matrix:")
     print(cm)
+    
 
     '''
     the version with fine-tuning
