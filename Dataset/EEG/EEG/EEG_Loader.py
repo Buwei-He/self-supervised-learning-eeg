@@ -107,15 +107,22 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     
     # Get list of subjects' group
     groups = [subject.group for subject in patients_list]
+
+    Data = {}
     
     # Split subjects into training+validation and testing sets
     train_val_subjects, test_subjects, groups_train_val, _ = train_test_split(patients_list, groups, test_size=test_ratio, stratify=groups, random_state=seed)
-    # Split subjects into training and valisation sets
-    train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
-        
-    split_subjects = {'train':train_subjects, 'val':val_subjects, 'test':test_subjects}
-    Data = {}
-    for split in ['train', 'val', 'test']:
+    if val_ratio == 0:
+        train_subjects = train_val_subjects
+        split_subjects = {'train':train_subjects, 'test':test_subjects}
+        Data['val_data'] = np.empty(shape=(0,0))
+        Data['val_label'] = np.empty(shape=(0,0))
+    else:
+        # Split subjects into training and valisation sets
+        train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
+        split_subjects = {'train':train_subjects, 'val':val_subjects, 'test':test_subjects}
+    
+    for split in split_subjects.keys():
         max_samples = max_train_samples if split == 'train' else None
         Data[f"{split}_data"], Data[f"{split}_label"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split, max_samples=max_samples)
     
@@ -131,14 +138,14 @@ def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
     if max_samples is None: max_samples = float('inf')
     # Get minimal number of epochs for one group or max number of samples per class
     min_n_epochs = min(min(count_epochs.values()), max_samples)
-    # Resample min_n_epochs for each group
+    # Select min_n_epochs for each group
     data, labels = [], []
     new_count_epochs = {}
     for group in count_groups.keys():
         data_group = [sub.epochs.get_data(copy=False, verbose=False) for sub in subjects if sub.group==group]
         data_group = np.concatenate(data_group, axis=0)
         if count_epochs[group] > min_n_epochs:
-            # Resample data
+            # Select data
             filtered_data_idx = np.random.choice(range(len(data_group)), size=min_n_epochs, replace=False)
         else:
             filtered_data_idx = range(len(data_group))
@@ -164,20 +171,6 @@ def map_categories_to_numbers(categories):
         return np.array([category_mapping[cat] for cat in categories])
     else:
         return category_mapping[categories]
-
-def arg_phaser():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--root_path', type=str, default='./Dataset/EEG/EEG', help='duration')
-    parser.add_argument('--duration', type=float, default=10, help='duration')
-    parser.add_argument('--sample_rate', type=float, default=100, help='sample_rate')
-    parser.add_argument('--overlap', type=float, default=0, help='overlap_ratio')
-    parser.add_argument('--channel', type=list, default=['Cz', 'Pz', 'C3', 'C4'], help='subset_channel_names')
-    parser.add_argument('--class', type=list, default=['C', 'A', 'F'], help='wanted_class')
-    parser.add_argument('--max_A', type=int, default=20, help='MMSE_max_A')
-    parser.add_argument('--max_F', type=int, default=25, help='MMSE_max_F')
-    args = parser.parse_args()
-    config = args.args.__dict__
 
 def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, val_ratio=0.1, test_ratio=0.1, 
         subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],

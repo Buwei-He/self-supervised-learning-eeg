@@ -67,10 +67,10 @@ parser.add_argument('--dataset', default='EEG', choices={'Benchmarks', 'UEA', 'U
 parser.add_argument('--output_dir', default='Results',
                     help='Root output directory. Must exist. Time-stamped directories will be created inside.')
 parser.add_argument('--Norm', type=bool, default=True, help='Data Normalization')
-parser.add_argument('--val_ratio', type=float, default=0.1, help="Proportion of the train-set to be used as validation")
-parser.add_argument('--test_ratio', type=float, default=0.1, help="Proportion of the dataset that is kept for testing (neither in train nor validation)")
+parser.add_argument('--val_ratio', type=float, default=0, help="Proportion of the train-set to be used as validation")
+parser.add_argument('--test_ratio', type=float, default=0.2, help="Proportion of the dataset that is kept for testing (neither in train nor validation)")
 parser.add_argument('--print_interval', type=int, default=10, help='Print batch info every this many batches')
-parser.add_argument('--duration', type=int, default=5, help='Duration (in s) for one epoch of data')
+parser.add_argument('--duration', type=int, default=10, help='Duration (in s) for one epoch of data')
 parser.add_argument('--sample_rate', type=int, default=100, help='Resampling rate of EEG signal')
 parser.add_argument('--overlap_ratio', type=float, default=0, help="Overlap ratio of epochs")
 parser.add_argument('--channels', default=['Cz','Pz'], help='EEG channels to consider, "all" for all channels')
@@ -78,7 +78,7 @@ parser.add_argument('--MMSE_max_A', type=int, default=30, help='Max MMSE score f
 parser.add_argument('--MMSE_max_F', type=int, default=30, help='Max MMSE score for FTD scubjects')
 parser.add_argument('--classes', type=List[str], default=['A','C','F'], help='Classes to use in EEG problem')
 parser.add_argument('--create_data', type=bool, default=True, help='Only for EEG. Whether to create the datasets from the args provided. If False supposes the existence of a EEG.npy file in the dataset folder but parameters may be inconsistent with config.')
-parser.add_argument('--max_train_samples', type=int, default=200, help='Maximum number of training samples to use for each class. If None, uses the maximum.')
+parser.add_argument('--max_train_samples', type=int, default=1000, help='Maximum number of training samples to use for each class. If None, uses the maximum.')
 # ------------------------------------- Model Parameter and Hyperparameter ---------------------------------------------
 parser.add_argument('--Training_mode', default='Pre_Training', choices={'Pre_Training', 'Linear_Probing', 'Supervised'})
 parser.add_argument('--Model_Type', default=['Series2Vec'], choices={'Series2Vec', 'TS_TCC', 'TF_C'})
