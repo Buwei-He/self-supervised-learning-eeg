@@ -198,32 +198,43 @@ class S2V_SS_Trainer(BaseTrainer):
         y_hat = clf.predict(test_repr.cpu().detach().numpy())
 
         acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-        # print('Test_acc:', acc_test)
-        # result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
-        # print('{0}, {1}, {2}, {3}'.format(epoch_num, acc_test, epoch_train_loss, epoch_test_loss), file=result_file)
-        # result_file.close()
-
+        print('Test_acc:', acc_test)
+        result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
+        
         # Add to tensorboard
         unique_classes = np.unique(test_labels.cpu().detach().numpy())
         class_accuracies = {}
+        keys_str = ''
+        values_str = ''
         for cls in unique_classes:
             cls_indices = test_labels.cpu().detach().numpy() == cls
             acc_class = accuracy_score(test_labels.cpu().detach().numpy()[cls_indices], y_hat[cls_indices])
             if self.problem == 'EEG':
                 class_accuracies[f'class_{map_numbers_to_categories(cls)}'] = acc_class
+                keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
+                values_str += ', {0:.8f}'.format(acc_class)
             else:
                 class_accuracies[f'class_{cls}'] = acc_class
-        # Log class-wise accuracies to TensorBoard
+
+        # Log class-wise accuracies to TensorBoard & save to txt
         class_accuracies[f'class_all'] = acc_test
         tensorboard_writer.add_scalars(f'acc/test', class_accuracies, epoch_num)
         tensorboard_writer.add_scalars(f'loss/test', {'total':test_total_loss}, epoch_num)
         tensorboard_writer.add_scalars(f'loss/test', {'time':test_time_loss}, epoch_num)
         tensorboard_writer.add_scalars(f'loss/test', {'freq':test_freq_loss}, epoch_num)
-        if epoch_train_loss is not None:
-            tensorboard_writer.add_scalars(f'loss/train', {'total':epoch_train_loss[0]}, epoch_num) 
-            tensorboard_writer.add_scalars(f'loss/train', {'time':epoch_train_loss[1]}, epoch_num)
-            tensorboard_writer.add_scalars(f'loss/train', {'freq':epoch_train_loss[2]}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss/train', {'total':epoch_train_loss[0]}, epoch_num) 
+        tensorboard_writer.add_scalars(f'loss/train', {'time':epoch_train_loss[1]}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss/train', {'freq':epoch_train_loss[2]}, epoch_num)
 
+        if epoch_num == 1:
+            print(f'#, train_loss, test_loss, test_acc_all{keys_str}', file=result_file)
+
+        print('{0}, {1:.8f}, {2:.8f}, {3:.8f}{4}'.format(
+            epoch_num, epoch_train_loss[0], test_total_loss, acc_test, values_str
+            ), 
+            file=result_file)
+        result_file.close()
+            
 
 class S2V_S_Trainer(BaseTrainer):
     """
