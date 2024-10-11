@@ -60,7 +60,7 @@ def load_activity(file_path, data_type, norm=True, verbose=1):
     LE = LabelEncoder()
     df['label'] = LE.fit_transform(df['label'])
     all_series = df.series.unique()
-    train_series, test_series = train_test_split([x for x in range(len(all_series))], test_size=6, random_state=1)
+    train_series, test_series = train_test_split([x for x in range(len(all_series))], test_size=6, random_state=1234)
     train_data = []
     print("[Data_Loader] Loading Train Data")
     for series in train_series:

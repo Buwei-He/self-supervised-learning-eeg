@@ -92,7 +92,8 @@ def numpy_loader(config):
             Data['max_len'] = Data['train_data'].shape[2]
         else:
             Data['train_data'], Data['train_label'], Data['val_data'], Data['val_label'] = \
-                split_dataset(Data_npy.item().get('train_data'), Data_npy.item().get('train_label'), config['val_ratio'])
+                split_dataset(Data_npy.item().get('train_data'), Data_npy.item().get('train_label'), config['val_ratio'],
+                              seed=config['seed'])
             Data['All_train_data'] = Data_npy.item().get('train_data')
             Data['All_train_label'] = Data_npy.item().get('train_label')
             Data['test_data'] = Data_npy.item().get('test_data')
@@ -108,10 +109,10 @@ def numpy_loader(config):
     return Data
 
 
-def split_dataset(data, label, validation_ratio):
+def split_dataset(data, label, validation_ratio, seed):
     if validation_ratio == 0:
         return data, label, None, None
-    splitter = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=validation_ratio, random_state=1234)
+    splitter = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=validation_ratio, random_state=seed)
     train_indices, val_indices = zip(*splitter.split(X=np.zeros(len(label)), y=label))
     train_data = data[train_indices]
     train_label = label[train_indices]

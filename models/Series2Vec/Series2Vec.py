@@ -44,7 +44,7 @@ class Seires2Vec(nn.Module):
         x_f = torch.fft.fft(x).float()
         out_f = self.embed_layer_f(x_f)
         out_f = self.gap_f(out_f)
-        return torch.cat((out.squeeze(), out_f.squeeze()), dim=1)
+        return torch.cat((out.squeeze(2), out_f.squeeze(2)), dim=1)
 
     def Pretrain_forward(self, x):
         x_src = self.embed_layer(x)
@@ -100,7 +100,7 @@ class DisjoinEncoder(nn.Module):
         x = x.unsqueeze(1)
         x = self.temporal_CNN(x)
         x = self.spatial_CNN(x)
-        x = self.rep_CNN(x.squeeze())
+        x = self.rep_CNN(x.squeeze(2))
         return x
 
     def initialize_weights(self):

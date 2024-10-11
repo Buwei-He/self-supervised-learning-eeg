@@ -50,7 +50,8 @@ def load(config):
         X_train, y_train, X_val, y_val, X_test, y_test = prepare_inputs_deep_learning(train_inputs=train_data,
                                                                                       test_inputs=test_data,
                                                                                       window_len=window_len,
-                                                                                      stride=stride, val_size=val_size)
+                                                                                      stride=stride, val_size=val_size,
+                                                                                      random_state=config['seed'])
 
         logger.info("{} samples will be used for training".format(len(y_train)))
         logger.info("{} samples will be used for validation".format(len(y_val)))

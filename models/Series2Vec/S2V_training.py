@@ -50,6 +50,8 @@ class BaseTrainer(object):
         self.epoch_metrics = OrderedDict()
         self.save_path = config['output_dir']
         self.problem = config['problem']
+        self.seed = config['seed']
+        self.batch_size = config['batch_size']
 
     def train_epoch(self, epoch_num=None):
         raise NotImplementedError('Please override in child class')
@@ -94,7 +96,6 @@ class S2V_SS_Trainer(BaseTrainer):
         Soft-DTW distance + smooth l1; \n
         Only for self-supervised pre-training ...
         '''
-
         Distance_out, Distance_out_f = model.Pretrain_forward(X.to(self.device))
         # Create a mask to select only the lower triangular values
         mask = torch.tril(torch.ones_like(Distance_out), diagonal=-1).bool()
@@ -137,21 +138,24 @@ class S2V_SS_Trainer(BaseTrainer):
         total_samples = 0  # total samples in epoch
         for i, batch in enumerate(self.train_loader):
             X, _, IDs = batch
+            # No need to train on uncomplete batches
+            if X.shape[0] < self.batch_size:
+                continue
+            else:
+                total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
+                # Zero gradients, perform a backward pass, and update the weights.
+                self.optimizer.zero_grad()
+                total_loss.backward()
 
-            total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
-            # Zero gradients, perform a backward pass, and update the weights.
-            self.optimizer.zero_grad()
-            total_loss.backward()
+                # torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=4.0)
+                self.optimizer.step()
 
-            # torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=4.0)
-            self.optimizer.step()
-
-            with torch.no_grad():
-                total_samples += 1
-                epoch_loss += total_loss.item()
-                train_time_loss += time_loss.item()
-                train_freq_loss += freq_loss.item()
+                with torch.no_grad():
+                    total_samples += 1
+                    epoch_loss += total_loss.item()
+                    train_time_loss += time_loss.item()
+                    train_freq_loss += freq_loss.item()
 
         epoch_loss = epoch_loss / total_samples  # average loss per sample for whole epoch
         train_time_loss = train_time_loss / total_samples
@@ -193,7 +197,7 @@ class S2V_SS_Trainer(BaseTrainer):
         # downstream task (classification) analysis: accuracy of each class / avg. of all classes
         train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
         test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
-        clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+        clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy(), seed=self.seed)
         # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
         y_hat = clf.predict(test_repr.cpu().detach().numpy())
 
@@ -464,12 +468,12 @@ def S2V_make_representation(model, data):
     return out, labels
 
 #logistic regression
-def fit_lr(features, y, MAX_SAMPLES=100000):
+def fit_lr(features, y, MAX_SAMPLES=100000, seed=1234):
     # If the training set is too large, subsample MAX_SAMPLES examples
     if features.shape[0] > MAX_SAMPLES:
         split = train_test_split(
             features, y,
-            train_size=MAX_SAMPLES, random_state=0, stratify=y
+            train_size=MAX_SAMPLES, random_state=seed, stratify=y
         )
         features = split[0]
         y = split[2]
@@ -477,7 +481,7 @@ def fit_lr(features, y, MAX_SAMPLES=100000):
     pipe = make_pipeline(
         StandardScaler(),
         LogisticRegression(
-            random_state=3407,
+            random_state=seed,
             max_iter=1000000,
             multi_class='ovr'
         )
@@ -486,12 +490,12 @@ def fit_lr(features, y, MAX_SAMPLES=100000):
     return pipe
 
 #####
-def fit_RidgeClassifier(features, y, MAX_SAMPLES=100000):
+def fit_RidgeClassifier(features, y, MAX_SAMPLES=100000, seed=1234):
     # If the training set is too large, subsample MAX_SAMPLES examples
     if features.shape[0] > MAX_SAMPLES:
         split = train_test_split(
             features, y,
-            train_size=MAX_SAMPLES, random_state=0, stratify=y
+            train_size=MAX_SAMPLES, random_state=seed, stratify=y
         )
         features = split[0]
         y = split[2]
