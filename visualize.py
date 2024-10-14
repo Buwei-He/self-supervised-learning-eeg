@@ -77,31 +77,31 @@ def visualize(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_poin
      
     fig.savefig(os.path.join(root_path, 'visualize', f'{problem}_{reducer_type}_{n_components}d.png'))
 
+if __name__ == '__main__':
+    problem = "EEG"
+    root_path = "/home/shouzheyun/Series2Vec/"
+    result_path = "Results/Pre_Training/EEG/2024-10-01_22-45"
+    config = load_config_from_json(root_path, result_path, problem)
+    Data = data_loader(config)
+    model = Model_factory(config, Data)
 
-problem = "EEG"
-root_path = "/home/shouzheyun/Series2Vec/"
-result_path = "Results/Pre_Training/EEG/2024-10-01_22-45"
-config = load_config_from_json(root_path, result_path, problem)
-Data = data_loader(config)
-model = Model_factory(config, Data)
+    # --------------------------------- Load Data ---------------------------------
+    train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
+    test_dataset = dataset_class(Data['test_data'], Data['test_label'], config)
 
-# --------------------------------- Load Data ---------------------------------
-train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
-test_dataset = dataset_class(Data['test_data'], Data['test_label'], config)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
 
-train_loader = DataLoader(dataset=train_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
-test_loader = DataLoader(dataset=test_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
+    # --------------------------------- Load Model --------------------------------
+    SS_Encoder = load_model(model, model_path=config['model_dir'], optimizer=None)  # Loading the model
+    SS_Encoder.to(config['device'])
+    train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
 
-# --------------------------------- Load Model --------------------------------
-SS_Encoder = load_model(model, model_path=config['model_dir'], optimizer=None)  # Loading the model
-SS_Encoder.to(config['device'])
-train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
-
-# ------------------------------- Visualize Test ------------------------------
-visualize(X=train_repr, 
-          y=train_labels,
-          reducer_type='tsne', # 'tsne', 'umap''
-          problem=problem, 
-          n_components=3, # 2, 3
-          n_points=1000
-          )
+    # ------------------------------- Visualize Test ------------------------------
+    visualize(X=train_repr, 
+            y=train_labels,
+            reducer_type='tsne', # 'tsne', 'umap''
+            problem=problem, 
+            n_components=3, # 2, 3
+            n_points=1000
+            )

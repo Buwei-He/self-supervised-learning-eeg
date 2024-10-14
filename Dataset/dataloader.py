@@ -10,11 +10,11 @@ from Dataset.EEG.EEG.EEG_Loader import EEG, z_score
 logger = logging.getLogger(__name__)
 
 
-def data_loader(config):
+def data_loader(config, is_analysis=False):
     if config['problem'] =='TUEV':
         Data = tuev_loader(config)
     elif config['problem'] == 'EEG':
-        Data = eeg_loader(config)
+        Data = eeg_loader(config, is_analysis)
     else:
         Data = numpy_loader(config)
     return Data
@@ -42,7 +42,8 @@ def tuev_loader(config):
     logger.info("{} samples will be used for test".format(len(Data['test_label'])))
     return Data
 
-def eeg_loader(config):
+def eeg_loader(config, is_analysis=False):
+    '''Loads Data for EEG dataset. If is_analysis=True then returns also subjects list.'''
     # If create data from config
     if config['create_data']:
         problem = config['problem']
@@ -54,7 +55,7 @@ def eeg_loader(config):
         Data = EEG(root_path=data_path, duration=config['duration'], sample_rate=config['sample_rate'], overlap_ratio=config['overlap_ratio'],
             val_ratio=config['val_ratio'], test_ratio=config['test_ratio'], subset_channel_names=config['channels'],
             MMSE_max_A=config['MMSE_max_A'], MMSE_max_F=config['MMSE_max_F'], wanted_class=config['classes'], max_train_samples=config['max_train_samples'],
-            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True)
+            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True, is_analysis=is_analysis)
         Data['max_len'] = Data['train_data'].shape[2]
 
         # Logger
