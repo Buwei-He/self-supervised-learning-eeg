@@ -194,10 +194,13 @@ class S2V_SS_Trainer(BaseTrainer):
         train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
         test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
         clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-        # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
-        y_hat = clf.predict(test_repr.cpu().detach().numpy())
 
-        acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
+        test_y_hat = clf.predict(test_repr.cpu().detach().numpy())
+        acc_test = accuracy_score(test_labels.cpu().detach().numpy(), test_y_hat)
+
+        train_y_hat = clf.predict(train_repr.cpu().detach().numpy())
+        acc_train = accuracy_score(train_labels.cpu().detach().numpy(), train_y_hat)
+
         print('Test_acc:', acc_test)
         result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
         
@@ -207,24 +210,35 @@ class S2V_SS_Trainer(BaseTrainer):
         keys_str = ''
         values_str = ''
         for cls in unique_classes:
-            cls_indices = test_labels.cpu().detach().numpy() == cls
-            acc_class = accuracy_score(test_labels.cpu().detach().numpy()[cls_indices], y_hat[cls_indices])
+            test_cls_indices = test_labels.cpu().detach().numpy() == cls
+            acc_test_class = accuracy_score(test_labels.cpu().detach().numpy()[test_cls_indices], test_y_hat[test_cls_indices])
             if self.problem == 'EEG':
-                class_accuracies[f'class_{map_numbers_to_categories(cls)}'] = acc_class
+                class_accuracies[f'test_class_{map_numbers_to_categories(cls)}'] = acc_test_class
                 keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
-                values_str += ', {0:.8f}'.format(acc_class)
+                values_str += ', {0:.8f}'.format(acc_test_class)
             else:
-                class_accuracies[f'class_{cls}'] = acc_class
+                class_accuracies[f'class_{cls}'] = acc_test_class
+
+        for cls in unique_classes:
+            train_cls_indices = train_labels.cpu().detach().numpy() == cls
+            acc_train_class = accuracy_score(train_labels.cpu().detach().numpy()[train_cls_indices], train_y_hat[train_cls_indices])
+            if self.problem == 'EEG':
+                class_accuracies[f'train_class_{map_numbers_to_categories(cls)}'] = acc_train_class
+                keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
+                values_str += ', {0:.8f}'.format(acc_train_class)
+            else:
+                class_accuracies[f'class_{cls}'] = acc_train_class
 
         # Log class-wise accuracies to TensorBoard & save to txt
-        class_accuracies[f'class_all'] = acc_test
-        tensorboard_writer.add_scalars(f'acc/test', class_accuracies, epoch_num)
-        tensorboard_writer.add_scalars(f'loss/test', {'total':test_total_loss}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss/test', {'time':test_time_loss}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss/test', {'freq':test_freq_loss}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss/train', {'total':epoch_train_loss[0]}, epoch_num) 
-        tensorboard_writer.add_scalars(f'loss/train', {'time':epoch_train_loss[1]}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss/train', {'freq':epoch_train_loss[2]}, epoch_num)
+        class_accuracies[f'test_class_all'] = acc_test
+        class_accuracies[f'train_class_all'] = acc_train
+        tensorboard_writer.add_scalars(f'acc', class_accuracies, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'test_total':test_total_loss}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'test_time':test_time_loss}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'test_freq':test_freq_loss}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'train_total':epoch_train_loss[0]}, epoch_num) 
+        tensorboard_writer.add_scalars(f'loss', {'train_time':epoch_train_loss[1]}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'train_freq':epoch_train_loss[2]}, epoch_num)
 
         if epoch_num == 1:
             print(f'#, train_loss, test_loss, test_acc_all{keys_str}', file=result_file)
