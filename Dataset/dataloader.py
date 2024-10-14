@@ -4,6 +4,7 @@ import logging
 import torch
 from sklearn import model_selection
 from torch.utils.data import Dataset
+from Dataset.EEG.EEG.EEG_Loader import EEG, z_score
 
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,8 @@ logger = logging.getLogger(__name__)
 def data_loader(config):
     if config['problem'] =='TUEV':
         Data = tuev_loader(config)
+    elif config['problem'] == 'EEG':
+        Data = eeg_loader(config)
     else:
         Data = numpy_loader(config)
     return Data
@@ -39,6 +42,33 @@ def tuev_loader(config):
     logger.info("{} samples will be used for test".format(len(Data['test_label'])))
     return Data
 
+def eeg_loader(config):
+    # If create data from config
+    if config['create_data']:
+        problem = config['problem']
+        # Path to dataset
+        data_path = config['data_dir'] + '/' + problem + '/'
+        # Define normalisation function
+        normalisation_fun = z_score if config['Norm'] else None
+        # Create EEG dataset from config, creates npy with processed dataset
+        Data = EEG(root_path=data_path, duration=config['duration'], sample_rate=config['sample_rate'], overlap_ratio=config['overlap_ratio'],
+            val_ratio=config['val_ratio'], test_ratio=config['test_ratio'], subset_channel_names=config['channels'],
+            MMSE_max_A=config['MMSE_max_A'], MMSE_max_F=config['MMSE_max_F'], wanted_class=config['classes'], max_train_samples=config['max_train_samples'],
+            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True)
+        Data['max_len'] = Data['train_data'].shape[2]
+
+        # Logger
+        logger.info("{} samples will be used for training".format(len(Data['train_label'])))
+        samples, channels, time_steps = Data['train_data'].shape
+        logger.info(
+            "Train Data Shape is #{} samples, {} channels, {} time steps ".format(samples, channels, time_steps))
+        logger.info("{} samples will be used for testing".format(len(Data['test_label'])))
+
+    # Else use the already available .npy file
+    else:
+        Data = numpy_loader(config)
+    return Data
+
 
 def numpy_loader(config):
     # Build data
@@ -59,10 +89,10 @@ def numpy_loader(config):
             # Data['All_train_label'] = Data_npy.item().get('All_train_label')
             Data['test_data'] = Data_npy.item().get('test_data')
             Data['test_label'] = Data_npy.item().get('test_label')
-            Data['max_len'] = Data['train_data'].shape[1]
+            Data['max_len'] = Data['train_data'].shape[2]
         else:
             Data['train_data'], Data['train_label'], Data['val_data'], Data['val_label'] = \
-                split_dataset(Data_npy.item().get('train_data'), Data_npy.item().get('train_label'), 0.1)
+                split_dataset(Data_npy.item().get('train_data'), Data_npy.item().get('train_label'), config['val_ratio'])
             Data['All_train_data'] = Data_npy.item().get('train_data')
             Data['All_train_label'] = Data_npy.item().get('train_label')
             Data['test_data'] = Data_npy.item().get('test_data')
@@ -79,6 +109,8 @@ def numpy_loader(config):
 
 
 def split_dataset(data, label, validation_ratio):
+    if validation_ratio == 0:
+        return data, label, None, None
     splitter = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=validation_ratio, random_state=1234)
     train_indices, val_indices = zip(*splitter.split(X=np.zeros(len(label)), y=label))
     train_data = data[train_indices]

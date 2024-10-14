@@ -78,8 +78,8 @@ def get_epochs(subject,
         eeg.annotations.rename(rename_dict)
     # Create epochs
     overlap = int(overlap_ratio * duration)
-    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, overlap=overlap, reject_by_annotation=True, preload=False, verbose=0) 
-    epochs.drop_bad(verbose=0)
+    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, overlap=overlap, reject_by_annotation=True, preload=False, verbose=False) 
+    epochs.drop_bad(verbose=False)
     # Keep only wanted channels
     epochs = epochs.load_data().pick(subset_channel_names,verbose=False)
     return epochs
@@ -101,37 +101,63 @@ def z_score(x):
     # Return the z-score normalisation of x
     return (x-x.mean())/x.std()
 
-def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate, val_ratio, test_ratio, seed):
-    data_train = []
-    labels_train = []
-    data_test = []
-    labels_test = []
+def get_train_and_test_data(patients_list, subset_channel_names, duration, sample_rate, val_ratio, test_ratio, seed, max_train_samples):
+    np.random.seed = seed
     wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
     
     # Get list of subjects' group
     groups = [subject.group for subject in patients_list]
+
+    Data = {}
     
     # Split subjects into training+validation and testing sets
     train_val_subjects, test_subjects, groups_train_val, _ = train_test_split(patients_list, groups, test_size=test_ratio, stratify=groups, random_state=seed)
-    # Split subjects into training and valisation sets
-    train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
-        
-    split_subjects = {'train':train_subjects, 'val':val_subjects, 'test':test_subjects}
-    Data = {}
-    for split in ['train', 'val', 'test']:
-        Data[f"{split}_data"], Data[f"{split}_label"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split)
+    if val_ratio == 0:
+        train_subjects = train_val_subjects
+        split_subjects = {'train':train_subjects, 'test':test_subjects}
+        Data['val_data'] = np.empty(shape=(0,0))
+        Data['val_label'] = np.empty(shape=(0,0))
+    else:
+        # Split subjects into training and valisation sets
+        train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
+        split_subjects = {'train':train_subjects, 'val':val_subjects, 'test':test_subjects}
+    
+    for split in split_subjects.keys():
+        max_samples = max_train_samples if split == 'train' else None
+        Data[f"{split}_data"], Data[f"{split}_label"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split, max_samples=max_samples)
     
     return Data
 
-def get_data_labels(subjects, wanted_shape, split_name=''):
+def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
     """ Get for each split (train, val, test) the data and labels as numpy arrays and print the statistics"""
     # Print stats of subjects
     count_groups = Counter([sub.group for sub in subjects])
-    print(f"{split_name}: {len(subjects)} sub = {count_groups['A']} AD, {count_groups['F']} FTD, {count_groups['C']} HC")
+    count_epochs = {}
+    for group in count_groups.keys():
+        count_epochs[group] = sum([len(sub.epochs) for sub in subjects if sub.group==group])
+    if max_samples is None: max_samples = float('inf')
+    # Get minimal number of epochs for one group or max number of samples per class
+    min_n_epochs = min(min(count_epochs.values()), max_samples)
+    # Select min_n_epochs for each group
+    data, labels = [], []
+    new_count_epochs = {}
+    for group in count_groups.keys():
+        data_group = [sub.epochs.get_data(copy=False, verbose=False) for sub in subjects if sub.group==group]
+        data_group = np.concatenate(data_group, axis=0)
+        if count_epochs[group] > min_n_epochs:
+            # Select data
+            filtered_data_idx = np.random.choice(range(len(data_group)), size=min_n_epochs, replace=False)
+        else:
+            filtered_data_idx = range(len(data_group))
+        data_group = data_group[filtered_data_idx]
+        if len(data) == 0:
+            data = data_group
+        else:
+            data = np.concatenate((data, data_group))
+        labels.extend([[group]*len(filtered_data_idx)])
+        new_count_epochs[group] = len(filtered_data_idx)
+    print(f'''{split_name}: {len(subjects)} sub = {count_groups['A']} AD ({count_epochs['A'],new_count_epochs['A']}), {count_groups['F']} FTD ({count_epochs['F'],new_count_epochs['F']}), {count_groups['C']} HC ({count_epochs['C'], new_count_epochs['C']})''')
     # Get epochs and labels for each subject
-    data = [sub.epochs.get_data(copy=False, verbose=False) for sub in subjects]
-    labels = [[sub.group]*len(sub.epochs) for sub in subjects]
-    data = np.concatenate(data, axis=0)
     labels = map_categories_to_numbers(np.concatenate(labels, axis=0))
     # Check shape
     if (data.shape[0] != labels.shape[0]) or (data.shape[1] != wanted_shape[0]) or (data.shape[2] != wanted_shape[1]) :
@@ -146,24 +172,11 @@ def map_categories_to_numbers(categories):
     else:
         return category_mapping[categories]
 
-def arg_phaser():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--root_path', type=str, default='./Dataset/EEG/EEG', help='duration')
-    parser.add_argument('--duration', type=float, default=10, help='duration')
-    parser.add_argument('--sample_rate', type=float, default=100, help='sample_rate')
-    parser.add_argument('--overlap', type=float, default=0, help='overlap_ratio')
-    parser.add_argument('--channel', type=list, default=['Cz', 'Pz', 'C3', 'C4'], help='subset_channel_names')
-    parser.add_argument('--class', type=list, default=['C', 'A', 'F'], help='wanted_class')
-    parser.add_argument('--max_A', type=int, default=20, help='MMSE_max_A')
-    parser.add_argument('--max_F', type=int, default=25, help='MMSE_max_F')
-    args = parser.parse_args()
-    config = args.args.__dict__
-
 def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, val_ratio=0.1, test_ratio=0.1, 
         subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],
+        max_train_samples=None, # Max number of samples to use for each class in training
         normalisation_fun=None, #If None then no normalisation, if not None applies this function to eeg data
-        seed=1234,
+        seed=1234, return_data=False,
         ):
     print(f'Current root path (path to EEG dataset): {root_path}')
     participants_file = os.path.join(root_path, 'participants.tsv')
@@ -188,7 +201,7 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
     
     # Get train and test data
     Data = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, 
-                                                               sample_rate, val_ratio, test_ratio, seed)
+                                 sample_rate, val_ratio, test_ratio, seed, max_train_samples)
 
     print(Data['train_data'].shape, Data['val_data'].shape, Data['test_data'].shape)
     # if not os.path.exists(root_path):
@@ -196,10 +209,12 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         
     np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
 
+    if return_data:
+        return Data
+
 if __name__ == '__main__':
     root_path = './Dataset/EEG/EEG'
-    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, test_size=0.25,
-        subset_channel_names=['Cz', 'Pz', 'C3', 'C4'], MMSE_max_A=20, MMSE_max_F=25,
-        wanted_class=['C','A'],
-        normalisation_fun=z_score) # 'Cz', 'Pz', 'C3','C4','Fp1','Fp2'
+    EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],
+        val_ratio=0.1, test_ratio=0.1, MMSE_max_A=30, MMSE_max_F=30, wanted_class=['C','F','A'],
+        normalisation_fun=z_score, seed=2024, return_data=False) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     

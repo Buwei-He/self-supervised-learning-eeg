@@ -229,7 +229,7 @@ def TF_C_pre_training(config, Data):
     all_metrics['LP_LGR_ACC'] = 0
     return best_aggr_metrics_test, all_metrics
 
-# this is shit
+
 def linear_probing():
     return
 
