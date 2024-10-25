@@ -68,21 +68,27 @@ def create_patients_list(root_path, participants_df):
     return patients_list
 
 def get_epochs(subject, 
+               sample_rate,
                duration=10, #in seconds
                overlap_ratio=0.5,
                subset_channel_names = 'all',
+               crop = 60, # in seconds
                ):
     eeg = subject.eeg
     # Rename boundary annotations to bad_boundary to drop epochs overlapping with boundary annotations
     rename_dict = {'boundary': 'bad_boundary'}
     if 'boundary' in eeg.annotations.description:
         eeg.annotations.rename(rename_dict)
+    # Crop and resample raw data
+    tmin = crop
+    tmax = eeg.times[-1] - crop
+    eeg.crop(tmin=tmin,tmax=tmax).resample(sample_rate)
     # Create epochs
     overlap = int(overlap_ratio * duration)
-    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, overlap=overlap, reject_by_annotation=True, preload=False, verbose=False) 
-    epochs.drop_bad(verbose=False)
+    epochs = mne.make_fixed_length_epochs(eeg, duration=duration, overlap=overlap, reject_by_annotation=True, preload=True, verbose=False) 
     # Keep only wanted channels
-    epochs = epochs.load_data().pick(subset_channel_names,verbose=False)
+    epochs = epochs.pick(subset_channel_names,verbose=False)
+    epochs.drop_bad(verbose=False)
     return epochs
 
 def filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class=['A','C','F']):
@@ -186,7 +192,10 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         max_train_samples=None, # Max number of samples to use for each class in training
         normalisation_fun=None, #If None then no normalisation, if not None applies this function to eeg data
         seed=1234, return_data=False,
-        is_analysis=False #If True then returns other demographics info
+        is_analysis=False, #If True then returns other demographics info
+        crop=60, #Duration (in s) to crop at start and end of recording
+        reject_threshold=6.14, #Drop segments with peak-to-peak amplitude higher than this threshold
+        flat_threshold=1, #Drop segments with peak-to-peak amplitude lower than this threshold
         ):
 
     print(f'Current root path (path to EEG dataset): {root_path}')
@@ -205,13 +214,12 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
 
     # Normalise and downsample the EEG data to 100 Hz and create epochs of 10 seconds
     for subject in patients_list_filtered:
-        # Apply normalisation subject wise, across all channels
-        subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
-        subject.eeg.resample(sample_rate)
-        subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
-        # Apply normalisation epoch (segment) wise
-        #subject.epochs.apply_function(normalisation_fun, picks='all', channel_wise=False)
-    
+        # Apply normalisation for each segment and channel
+        subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=True)
+        subject.epochs = get_epochs(subject, sample_rate=sample_rate, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names, crop=crop)
+        # Drop outliers
+        subject.epochs.drop_bad(reject={'eeg':reject_threshold}, flat={'eeg':flat_threshold}, verbose=0)
+        
     # Get train and test data
     Data = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, 
                                  sample_rate, val_ratio, test_ratio, seed, max_train_samples, is_analysis)

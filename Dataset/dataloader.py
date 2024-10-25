@@ -55,7 +55,8 @@ def eeg_loader(config, is_analysis=False):
         Data = EEG(root_path=data_path, duration=config['duration'], sample_rate=config['sample_rate'], overlap_ratio=config['overlap_ratio'],
             val_ratio=config['val_ratio'], test_ratio=config['test_ratio'], subset_channel_names=config['channels'],
             MMSE_max_A=config['MMSE_max_A'], MMSE_max_F=config['MMSE_max_F'], wanted_class=config['classes'], max_train_samples=config['max_train_samples'],
-            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True, is_analysis=is_analysis)
+            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True, is_analysis=is_analysis, crop=config['crop'],
+            flat_threshold=config['flat_threshold'], reject_threshold=config['reject_threshold'])
         Data['max_len'] = Data['train_data'].shape[2]
 
         # Logger
