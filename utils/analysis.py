@@ -4,13 +4,117 @@ by showing confusion matrix, accuracy, recall, precision etc.
 """
 
 import numpy as np
-import sys
+import sys, os
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from tabulate import tabulate
 import math
 import logging
 from datetime import datetime
+
+
+def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_num='final'):
+    from sklearn.metrics import confusion_matrix
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    # Create a DataFrame to group by subject ID
+    data_df = pd.DataFrame({'subject_id': subject_info[:, 0].astype(str), 
+                            'y_true': y_true, 
+                            'y_pred': y_pred, 
+                            'start_time': subject_info[:, 1]})
+
+    # Initialize dictionaries to store each subject's confusion matrix and metrics
+    subject_conf_matrices = {}
+    labels = np.unique(y_true)
+
+    # Calculate confusion matrix and metrics for each subject
+    for subject_id, group in data_df.groupby('subject_id'):
+        
+        y_true_subject = group['y_true']
+        y_pred_subject = group['y_pred']
+        
+        # Generate confusion matrix for this subject
+        conf_matrix = confusion_matrix(y_true_subject, y_pred_subject, labels=labels)
+        subject_conf_matrices[subject_id] = conf_matrix
+
+    # Initialize variables
+    class_counts = None  # To store sum of instances for each class across all subjects
+    true_positives = None  # To store sum of true positives for each class across all subjects
+    total_correct = 0  # To count total correct predictions across all subjects
+    total_predictions = 0  # To count all predictions across all subjects
+
+    # To store results per subject and class
+    subject_class_accuracies = {}
+    
+    for subject_id, matrix in subject_conf_matrices.items():
+        subject_true_positives = np.diag(matrix)
+        class_totals = matrix.sum(axis=1)
+        subject_class_accuracy = subject_true_positives / class_totals
+        
+        # Store individual subject-class accuracies
+        subject_class_accuracies[subject_id] = {
+            'accuracy': np.nanmax(subject_class_accuracy),
+            'true_label': np.nanargmax(subject_class_accuracy),
+            'vote_label': np.argmax(np.sum(matrix, axis=0)),
+            'correct_vote': np.max(subject_true_positives) == np.max(matrix),
+        }
+
+        # Aggregate true positives and class totals across all subjects
+        if true_positives is None:
+            true_positives = subject_true_positives
+            class_counts = class_totals
+        else:
+            true_positives = true_positives + subject_true_positives
+            class_counts += class_totals
+
+        # Update overall accuracy counters
+        total_correct += subject_true_positives.sum()
+        total_predictions += matrix.sum()
+
+
+    class_accuracies = true_positives / class_counts
+    weighted_avg_accuracy = total_correct / total_predictions
+
+    df = pd.DataFrame(subject_class_accuracies).T
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        # print(f"subject-wise, per-class accuracy at epoch {epoch_num}:\n", df)
+        output_file = os.path.join(result_path, f'subject_acc_epoch_{epoch_num}.txt')
+        df.to_csv(output_file, sep='\t', index=False)
+    print("Class-wise accuracy across all subjects:", class_accuracies)
+    print("Weighted avg. accuracy:", weighted_avg_accuracy)
+    voting_accuracy = np.mean(df['correct_vote'].values.astype(float))
+    voting_conf_matrix = confusion_matrix(df['true_label'].values.astype(int), df['vote_label'].values.astype(int), labels=labels)
+    print("Voting accuracy:", voting_accuracy)
+    print("Voting confusion matrix:\n", voting_conf_matrix)
+    print("Voting confusion matrix, normalized:\n", voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis])
+
+    # Set the number of rows and columns for the subplot grid
+    num_subjects = len(subject_conf_matrices)
+    cols = 3  # Adjust based on how many matrices you want per row
+    rows = (num_subjects + cols - 1) // cols  # Calculate required rows
+
+    # Set up the figure size and style
+    plt.figure(figsize=(2.4 * cols, 2.4 * rows))
+    plt.suptitle(f"Confusion Matrices for Each subject, Epoch {epoch_num}", fontsize=16)
+
+    # Generate a confusion matrix subplot for each subject
+    for idx, (subject_id, matrix) in enumerate(subject_conf_matrices.items(), start=1):
+        plt.subplot(rows, cols, idx)
+        sns.heatmap(matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
+        plt.title(f'Subject: {subject_id}')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+
+    # Adjust layout and save the figure
+    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the main title
+    output_file = os.path.join(result_path, f"conf_matrices_epoch_{epoch_num}.png")
+    plt.savefig(output_file, dpi=300)
+    plt.close()
+
+    print(f"Confusion matrices saved as {output_file}")
 
 
 def acc_top_k(predictions, y_true):

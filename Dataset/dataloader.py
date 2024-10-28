@@ -121,12 +121,16 @@ def split_dataset(data, label, validation_ratio):
 
 
 class dataset_class(Dataset):
-    def __init__(self, data, label, config):
+    def __init__(self, data, label, config, meta_info=None):
         super(dataset_class, self).__init__()
 
         self.model_type = config['Model_Type'][0]
         self.feature = data
         self.labels = label.astype(np.int32)
+        if meta_info is not None:
+            self.meta_info = meta_info
+        else:
+            self.meta_info = None
 
     def __getitem__(self, ind):
         x = self.feature[ind]

@@ -117,6 +117,7 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
         split_subjects = {'train':train_subjects, 'test':test_subjects}
         Data['val_data'] = np.empty(shape=(0,0))
         Data['val_label'] = np.empty(shape=(0,0))
+        Data['val_info'] = np.empty(shape=(0,0))
     else:
         # Split subjects into training and valisation sets
         train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
@@ -124,7 +125,7 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     
     for split in split_subjects.keys():
         max_samples = max_train_samples if split == 'train' else None
-        Data[f"{split}_data"], Data[f"{split}_label"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split, max_samples=max_samples)
+        Data[f"{split}_data"], Data[f"{split}_label"], Data[f"{split}_info"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split, max_samples=max_samples)
     
     return Data
 
@@ -139,23 +140,39 @@ def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
     # Get minimal number of epochs for one group or max number of samples per class
     min_n_epochs = min(min(count_epochs.values()), max_samples)
     # Select min_n_epochs for each group
-    data, labels = [], []
+    data, labels, info = [], [], []
     new_count_epochs = {}
+
     for group in count_groups.keys():
-        data_group = [sub.epochs.get_data(copy=False, verbose=False) for sub in subjects if sub.group==group]
+        data_group, info_group = [], []
+        for sub in subjects:
+            if sub.group == group:
+                data_group.append(sub.epochs.get_data(copy=False, verbose=False))
+                info_group.append(np.array([np.array([int(sub.participant_id.split('-')[1])] * sub.epochs.events.shape[0]), 
+                                 sub.epochs.events[:, 0]]).T)
+        # data_group = [sub.epochs.get_data(copy=False, verbose=False) for sub in subjects if sub.group==group]
         data_group = np.concatenate(data_group, axis=0)
+        info_group = np.concatenate(info_group, axis=0)
+
         if count_epochs[group] > min_n_epochs:
             # Select data
             filtered_data_idx = np.random.choice(range(len(data_group)), size=min_n_epochs, replace=False)
         else:
             filtered_data_idx = range(len(data_group))
+
         data_group = data_group[filtered_data_idx]
+        info_group = info_group[filtered_data_idx]
+
         if len(data) == 0:
             data = data_group
+            info = info_group
         else:
             data = np.concatenate((data, data_group))
+            info = np.concatenate((info, info_group))
+        
         labels.extend([[group]*len(filtered_data_idx)])
         new_count_epochs[group] = len(filtered_data_idx)
+
     print(f'''{split_name}: {len(subjects)} sub = {count_groups['A']} AD ({count_epochs['A'],new_count_epochs['A']}), {count_groups['F']} FTD ({count_epochs['F'],new_count_epochs['F']}), {count_groups['C']} HC ({count_epochs['C'], new_count_epochs['C']})''')
     # Get epochs and labels for each subject
     labels = map_categories_to_numbers(np.concatenate(labels, axis=0))
@@ -163,7 +180,7 @@ def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
     if (data.shape[0] != labels.shape[0]) or (data.shape[1] != wanted_shape[0]) or (data.shape[2] != wanted_shape[1]) :
         print(data.shape, labels.shape, wanted_shape)
         raise ValueError("Problem in input shape, check code.")
-    return data, labels
+    return data, labels, info
 
 def map_categories_to_numbers(categories):
     category_mapping = {'C': 0, 'A': 1, 'F': 2}
@@ -186,7 +203,7 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
 
     # Create the patients list
     patients_list = create_patients_list(root_path, participants_df)
-    patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F,wanted_class)
+    patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F, wanted_class)
 
     if not normalisation_fun:
         # If no normalisation then the function is just the identity function
@@ -204,9 +221,6 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
                                  sample_rate, val_ratio, test_ratio, seed, max_train_samples)
 
     print(Data['train_data'].shape, Data['val_data'].shape, Data['test_data'].shape)
-    # if not os.path.exists(root_path):
-    #     os.makedirs(root_path)
-        
     np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
 
     if return_data:

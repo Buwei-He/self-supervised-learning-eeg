@@ -1,0 +1,47 @@
+{
+    "MMSE_max_A": 30,
+    "MMSE_max_F": 30,
+    "Model_Type": [
+        "Series2Vec"
+    ],
+    "Norm": true,
+    "Training_mode": "Pre_Training",
+    "batch_size": 128,
+    "channels": [
+        "Cz",
+        "Pz"
+    ],
+    "classes": [
+        "A",
+        "C",
+        "F"
+    ],
+    "console": false,
+    "create_data": true,
+    "data_dir": "/home/buwei/dd2430/self-supervised-learning-eeg/Dataset/EEG",
+    "dataset": "EEG",
+    "dim_ff": 256,
+    "dropout": 0.01,
+    "duration": 5,
+    "emb_size": 12,
+    "epochs": 5,
+    "epochs_ft": 10,
+    "gpu": 0,
+    "key_metric": "loss",
+    "layers": 4,
+    "lr": 0.001,
+    "max_train_samples": 1000,
+    "num_heads": 8,
+    "output_dir": "Results/Pre_Training/EEG/2024-10-28_21-18",
+    "overlap_ratio": 0,
+    "pred_dir": "Results/Pre_Training/EEG/2024-10-28_21-18/predictions",
+    "print_interval": 10,
+    "rep_size": 512,
+    "sample_rate": 100,
+    "save_dir": "Results/Pre_Training/EEG/2024-10-28_21-18/checkpoints",
+    "seed": 1234,
+    "tensorboard_dir": "Results/Pre_Training/EEG/2024-10-28_21-18/tb_summaries",
+    "test_ratio": 0.2,
+    "val_interval": 1,
+    "val_ratio": 0.2
+}

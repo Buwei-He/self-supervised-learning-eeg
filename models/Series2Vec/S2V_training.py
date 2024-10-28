@@ -191,18 +191,29 @@ class S2V_SS_Trainer(BaseTrainer):
         test_freq_loss = test_freq_loss / total_samples
 
         # downstream task (classification) analysis: accuracy of each class / avg. of all classes
-        train_repr, train_labels = S2V_make_representation(self.model, self.train_loader)
-        test_repr, test_labels = S2V_make_representation(self.model, self.test_loader)
+        train_repr, train_labels, train_info = S2V_make_representation(self.model, self.train_loader)
+        test_repr, test_labels, test_info = S2V_make_representation(self.model, self.test_loader)
+
         clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
 
+        train_y_hat = clf.predict(train_repr.cpu().detach().numpy())
         test_y_hat = clf.predict(test_repr.cpu().detach().numpy())
         acc_test = accuracy_score(test_labels.cpu().detach().numpy(), test_y_hat)
-
-        train_y_hat = clf.predict(train_repr.cpu().detach().numpy())
         acc_train = accuracy_score(train_labels.cpu().detach().numpy(), train_y_hat)
 
+        analysis.subject_wise_analysis(y_true=train_labels.cpu().detach().numpy(), 
+                                       y_pred=train_y_hat, 
+                                       subject_info=train_info,
+                                       epoch_num=epoch_num,
+                                       result_path=self.save_path)
+
+        # analysis.subject_wise_analysis(y_true=test_labels.cpu().detach().numpy(), 
+        #                                y_pred=test_y_hat, 
+        #                                subject_info=test_info,
+        #                                epoch_num = epoch_num)
+
         print('Test_acc:', acc_test)
-        result_file = open(self.save_path + '/' + self.problem + '_linear_result.txt', 'a+')
+        result_file = open(f'{self.save_path}/{self.problem}_linear_result.txt', 'a+')
         
         # Add to tensorboard
         unique_classes = np.unique(test_labels.cpu().detach().numpy())
@@ -364,10 +375,10 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
 
 
 def S_train_runner(config, model, trainer, evaluator, path):
-    epochs = config['epochs']
+    epochs = config['epochs'] + config['epochs_ft']
     optimizer = config['optimizer']
     loss_module = config['loss_module']
-    start_epoch = 0
+    start_epoch = config['epochs']
     total_start_time = time.time()
     # tensorboard_writer = SummaryWriter('summary')
     best_value = 1e16
@@ -465,6 +476,7 @@ def Distance_normalizer(distance):
 def S2V_make_representation(model, data):
     out = []
     labels = []
+    meta_infos = []
     model.eval()
     with torch.no_grad():
         for i, batch in enumerate(data):
@@ -472,9 +484,13 @@ def S2V_make_representation(model, data):
             rep = model.linear_prob(X.to('cuda'))
             out.append(rep)
             labels.append(targets)
-
+            if data.dataset.meta_info is not None:
+                meta_infos.append(data.dataset.meta_info[IDs])
         out = torch.cat(out, dim=0)
         labels = torch.cat(labels, dim=0)
+        if data.dataset.meta_info is not None:
+            meta_infos = np.concatenate(meta_infos, axis=0)
+            return out, labels, meta_infos
     return out, labels
 
 #logistic regression

@@ -29,19 +29,21 @@ def pre_training(config, Data, enable_fine_tuning=True):
     optim_class = get_optimizer("RAdam")
     config['optimizer'] = optim_class(model.parameters(), lr=config['lr'], weight_decay=0)
     config['loss_module'] = get_loss_module()
+    config['train_info'] = Data['train_info']
+    config['test_info'] = Data['test_info']
     model.to(config['device'])
 
     '''
     the version without fine-tuning
     '''
     # --------------------------------- Load Data ---------------------------------------------------------------------
-    train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
-    test_dataset = dataset_class(Data['test_data'], Data['test_label'], config)
+    train_dataset = dataset_class(Data['train_data'], Data['train_label'], config, meta_info=Data['train_info'])
+    test_dataset = dataset_class(Data['test_data'], Data['test_label'], config, meta_info=Data['test_info'])
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
     test_loader = DataLoader(dataset=test_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
 
-    # --------------------------------- Self Superviseed Training ------------------------------------------------------
+    # --------------------------------- Self Supervised Training ------------------------------------------------------
     SS_trainer = S2V_SS_Trainer(model, train_loader, test_loader, config, print_conf_mat=False)
     save_path = os.path.join(config['save_dir'], config['problem'] + '_model_{}.pth'.format('last'))
     SS_train_runner(config, model, SS_trainer, save_path)
@@ -51,8 +53,8 @@ def pre_training(config, Data, enable_fine_tuning=True):
     SS_Encoder, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])  # Loading the model
     SS_Encoder.to(config['device'])
 
-    train_repr, train_labels = S2V_make_representation(SS_Encoder, train_loader)
-    test_repr, test_labels = S2V_make_representation(SS_Encoder, test_loader)
+    train_repr, train_labels, train_info = S2V_make_representation(SS_Encoder, train_loader)
+    test_repr, test_labels, test_info = S2V_make_representation(SS_Encoder, test_loader)
     # clf is ClassiFier
     clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
     # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
@@ -62,16 +64,22 @@ def pre_training(config, Data, enable_fine_tuning=True):
     cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
     print("Confusion Matrix:")
     print(cm)
-    
+
+    analysis.subject_wise_analysis(
+        y_true=test_labels.cpu().detach().numpy(), 
+        y_pred=y_hat, 
+        subject_info=test_info,
+        result_path=config['output_dir'])
+
 
     '''
     the version with fine-tuning
     '''
     # --------------------------------- Load Data -------------------------------------------------------------
     if enable_fine_tuning:
-        train_dataset = dataset_class(Data['train_data'], Data['train_label'], config)
-        val_dataset = dataset_class(Data['val_data'], Data['val_label'], config)
-        test_dataset = dataset_class(Data['test_data'], Data['test_label'], config)
+        train_dataset = dataset_class(Data['train_data'], Data['train_label'], config, meta_info=Data['train_info'])
+        val_dataset = dataset_class(Data['val_data'], Data['val_label'], config, meta_info=Data['val_info'])
+        test_dataset = dataset_class(Data['test_data'], Data['test_label'], config, meta_info=Data['test_info'])
 
         train_loader = DataLoader(dataset=train_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
@@ -87,8 +95,8 @@ def pre_training(config, Data, enable_fine_tuning=True):
         best_Encoder, optimizer, start_epoch = load_model(SS_Encoder, save_path, config['optimizer'])
         best_Encoder.to(config['device'])
 
-        train_repr, train_labels = S2V_make_representation(best_Encoder, train_loader)
-        test_repr, test_labels = S2V_make_representation(best_Encoder, test_loader)
+        train_repr, train_labels, train_info = S2V_make_representation(best_Encoder, train_loader)
+        test_repr, test_labels, test_info = S2V_make_representation(best_Encoder, test_loader)
         clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
         y_hat = clf.predict(test_repr.cpu().detach().numpy())
         acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
@@ -96,6 +104,13 @@ def pre_training(config, Data, enable_fine_tuning=True):
         cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
         print("Confusion Matrix:")
         print(cm)
+
+        analysis.subject_wise_analysis(y_pred=y_hat, 
+                                y_true=test_labels.cpu().detach().numpy(), 
+                                subject_info=test_info,
+                                epoch_num='finetune_final',
+                                result_path=config['output_dir']
+                                )
 
         best_test_evaluator = S2V_S_Trainer(best_Encoder, test_loader, None, config, print_conf_mat=True)
         best_aggr_metrics_test, all_metrics = best_test_evaluator.evaluate(keep_all=True)
