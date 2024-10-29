@@ -89,7 +89,7 @@ parser.add_argument('--rep_size', type=int, default=512, help='Representation di
 parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-headed attention heads')
 # -------------------------------------Training Parameters/ Hyper-Parameters -----------------------------------------
 parser.add_argument('--epochs', type=int, default=5, help='Number of pre-training epochs')
-parser.add_argument('--epochs_ft', type=int, default=10, help='Number of fine-tuning epochs')
+parser.add_argument('--epochs_ft', type=int, default=1, help='Number of fine-tuning epochs')
 parser.add_argument('--batch_size', type=int, default=128, help='Training batch size')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.01, help='Dropout regularization ratio')
