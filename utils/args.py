@@ -70,7 +70,7 @@ parser.add_argument('--Norm', type=bool, default=True, help='Data Normalization'
 parser.add_argument('--val_ratio', type=float, default=0.2, help="Proportion of the train-set to be used as validation")
 parser.add_argument('--test_ratio', type=float, default=0.2, help="Proportion of the dataset that is kept for testing (neither in train nor validation)")
 parser.add_argument('--print_interval', type=int, default=10, help='Print batch info every this many batches')
-parser.add_argument('--duration', type=int, default=5, help='Duration (in s) for one epoch of data')
+parser.add_argument('--duration', type=int, default=10, help='Duration (in s) for one epoch of data')
 parser.add_argument('--sample_rate', type=int, default=100, help='Resampling rate of EEG signal')
 parser.add_argument('--overlap_ratio', type=float, default=0, help="Overlap ratio of epochs")
 parser.add_argument('--channels', default=['Cz','Pz'], help='EEG channels to consider, "all" for all channels')

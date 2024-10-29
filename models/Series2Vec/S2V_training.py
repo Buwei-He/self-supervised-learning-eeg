@@ -171,24 +171,7 @@ class S2V_SS_Trainer(BaseTrainer):
         '''
         assert(self.test_loader is not None)
 
-        # Soft-DTW related loss on test dataset
-        test_total_loss = 0  
-        test_time_loss = 0  
-        test_freq_loss = 0  
-        total_samples = 0  # total samples in epoch
-
         self.model = self.model.eval()
-
-        for i, batch in enumerate(self.test_loader):
-            X, _, IDs = batch
-            total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
-            total_samples += 1
-            test_total_loss += total_loss.item()
-            test_time_loss += time_loss.item()
-            test_freq_loss += freq_loss.item()
-        test_total_loss = test_total_loss / total_samples
-        test_time_loss = test_time_loss / total_samples
-        test_freq_loss = test_freq_loss / total_samples
 
         # downstream task (classification) analysis: accuracy of each class / avg. of all classes
         train_repr, train_labels, train_info = S2V_make_representation(self.model, self.train_loader)
@@ -198,21 +181,21 @@ class S2V_SS_Trainer(BaseTrainer):
 
         train_y_hat = clf.predict(train_repr.cpu().detach().numpy())
         test_y_hat = clf.predict(test_repr.cpu().detach().numpy())
-        acc_test = accuracy_score(test_labels.cpu().detach().numpy(), test_y_hat)
-        acc_train = accuracy_score(train_labels.cpu().detach().numpy(), train_y_hat)
 
-        analysis.subject_wise_analysis(y_true=train_labels.cpu().detach().numpy(), 
-                                       y_pred=train_y_hat, 
-                                       subject_info=train_info,
-                                       epoch_num=epoch_num,
-                                       result_path=self.save_path)
+        train_acc, train_class_acc = analysis.subject_wise_analysis(
+                                    y_true=train_labels.cpu().detach().numpy(), 
+                                    y_pred=train_y_hat, 
+                                    subject_info=train_info,
+                                    epoch_num=epoch_num,
+                                    result_path=self.save_path)
 
-        # analysis.subject_wise_analysis(y_true=test_labels.cpu().detach().numpy(), 
-        #                                y_pred=test_y_hat, 
-        #                                subject_info=test_info,
-        #                                epoch_num = epoch_num)
+        test_acc, test_class_acc = analysis.subject_wise_analysis(
+                                    y_true=test_labels.cpu().detach().numpy(), 
+                                    y_pred=test_y_hat, 
+                                    subject_info=test_info,
+                                    epoch_num=epoch_num,
+                                    result_path=self.save_path)
 
-        print('Test_acc:', acc_test)
         result_file = open(f'{self.save_path}/{self.problem}_linear_result.txt', 'a+')
         
         # Add to tensorboard
@@ -221,32 +204,39 @@ class S2V_SS_Trainer(BaseTrainer):
         keys_str = ''
         values_str = ''
         for cls in unique_classes:
-            test_cls_indices = test_labels.cpu().detach().numpy() == cls
-            acc_test_class = accuracy_score(test_labels.cpu().detach().numpy()[test_cls_indices], test_y_hat[test_cls_indices])
-            if self.problem == 'EEG':
-                class_accuracies[f'test_class_{map_numbers_to_categories(cls)}'] = acc_test_class
-                keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
-                values_str += ', {0:.8f}'.format(acc_test_class)
-            else:
-                class_accuracies[f'class_{cls}'] = acc_test_class
+            class_accuracies[f'test_class_{map_numbers_to_categories(cls)}'] = test_class_acc[cls]
+            keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
+            values_str += ', {0:.8f}'.format(test_class_acc[cls])
 
         for cls in unique_classes:
-            train_cls_indices = train_labels.cpu().detach().numpy() == cls
-            acc_train_class = accuracy_score(train_labels.cpu().detach().numpy()[train_cls_indices], train_y_hat[train_cls_indices])
-            if self.problem == 'EEG':
-                class_accuracies[f'train_class_{map_numbers_to_categories(cls)}'] = acc_train_class
-                keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
-                values_str += ', {0:.8f}'.format(acc_train_class)
-            else:
-                class_accuracies[f'class_{cls}'] = acc_train_class
+            class_accuracies[f'train_class_{map_numbers_to_categories(cls)}'] = train_class_acc[cls]
+            keys_str += f', train_acc_{map_numbers_to_categories(cls)}'
+            values_str += ', {0:.8f}'.format(train_class_acc[cls])
 
-        # Log class-wise accuracies to TensorBoard & save to txt
-        class_accuracies[f'test_class_all'] = acc_test
-        class_accuracies[f'train_class_all'] = acc_train
+
+        # Log class-wise accuracies to TensorBoard
+        class_accuracies[f'test_class_all'] = test_acc
+        class_accuracies[f'train_class_all'] = train_acc
         tensorboard_writer.add_scalars(f'acc', class_accuracies, epoch_num)
-        tensorboard_writer.add_scalars(f'loss', {'test_total':test_total_loss}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss', {'test_time':test_time_loss}, epoch_num)
-        tensorboard_writer.add_scalars(f'loss', {'test_freq':test_freq_loss}, epoch_num)
+
+
+        # Soft-DTW related loss on test dataset
+        epoch_test_loss = np.zeros(3)
+        total_samples = 0  # total samples in epoch
+
+        for i, batch in enumerate(self.test_loader):
+            X, _, IDs = batch
+            total_loss, time_loss, freq_loss = self.ss_training_loss_fn(self.model, X, get_all_losses=True)
+            total_samples += 1
+            epoch_test_loss[0] += total_loss.item()
+            epoch_test_loss[1] += time_loss.item()
+            epoch_test_loss[2] += freq_loss.item()
+
+        epoch_test_loss = epoch_test_loss / total_samples
+
+        tensorboard_writer.add_scalars(f'loss', {'test_total':epoch_test_loss[0]}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'test_time':epoch_test_loss[1]}, epoch_num)
+        tensorboard_writer.add_scalars(f'loss', {'test_freq':epoch_test_loss[2]}, epoch_num)
         tensorboard_writer.add_scalars(f'loss', {'train_total':epoch_train_loss[0]}, epoch_num) 
         tensorboard_writer.add_scalars(f'loss', {'train_time':epoch_train_loss[1]}, epoch_num)
         tensorboard_writer.add_scalars(f'loss', {'train_freq':epoch_train_loss[2]}, epoch_num)
@@ -254,8 +244,8 @@ class S2V_SS_Trainer(BaseTrainer):
         if epoch_num == 1:
             print(f'#, train_loss, test_loss, test_acc_all{keys_str}', file=result_file)
 
-        print('{0}, {1:.8f}, {2:.8f}, {3:.8f}{4}'.format(
-            epoch_num, epoch_train_loss[0], test_total_loss, acc_test, values_str
+        print('{0}, {1:.8f}, {2:.8f}, {3:.8f}, {4:.8f}{5}'.format(
+            epoch_num, epoch_train_loss[0], epoch_test_loss[0], train_acc, test_acc, values_str
             ), 
             file=result_file)
         result_file.close()
@@ -345,6 +335,26 @@ class S2V_S_Trainer(BaseTrainer):
 
         self.epoch_metrics['accuracy'] = metrics_dict['total_accuracy']  # same as average recall over all classes
         self.epoch_metrics['precision'] = metrics_dict['prec_avg']  # average precision over all classes
+
+        # # CUSTOM downstream task (classification) analysis
+        # train_repr, train_labels, train_info = S2V_make_representation(self.model, self.train_loader)
+        # test_repr, test_labels, test_info = S2V_make_representation(self.model, self.test_loader)
+        # clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
+        # train_y_hat = clf.predict(train_repr.cpu().detach().numpy())
+        # test_y_hat = clf.predict(test_repr.cpu().detach().numpy())
+        # train_acc, train_class_acc = analysis.subject_wise_analysis(
+        #                             y_true=train_labels.cpu().detach().numpy(), 
+        #                             y_pred=train_y_hat, 
+        #                             subject_info=train_info,
+        #                             epoch_num=epoch_num,
+        #                             result_path=self.save_path)
+
+        # test_acc, test_class_acc = analysis.subject_wise_analysis(
+        #                             y_true=test_labels.cpu().detach().numpy(), 
+        #                             y_pred=test_y_hat, 
+        #                             subject_info=test_info,
+        #                             epoch_num=epoch_num,
+        #                             result_path=self.save_path)
 
         return self.epoch_metrics, metrics_dict
 

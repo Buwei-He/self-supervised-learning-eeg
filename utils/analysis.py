@@ -88,9 +88,10 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
     print("Weighted avg. accuracy:", weighted_avg_accuracy)
     voting_accuracy = np.mean(df['correct_vote'].values.astype(float))
     voting_conf_matrix = confusion_matrix(df['true_label'].values.astype(int), df['vote_label'].values.astype(int), labels=labels)
+    voting_norm_conf_matrix = voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis]
     print("Voting accuracy:", voting_accuracy)
     print("Voting confusion matrix:\n", voting_conf_matrix)
-    print("Voting confusion matrix, normalized:\n", voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis])
+    print("Voting confusion matrix, normalized:\n", voting_norm_conf_matrix)
 
     # Set the number of rows and columns for the subplot grid
     num_subjects = len(subject_conf_matrices)
@@ -116,6 +117,7 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
     plt.close()
 
     print(f"Confusion matrices saved as {output_file}")
+    return voting_accuracy, np.diag(voting_norm_conf_matrix)
 
 
 def acc_top_k(predictions, y_true):

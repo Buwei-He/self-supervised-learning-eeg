@@ -59,16 +59,17 @@ def pre_training(config, Data, enable_fine_tuning=True):
     clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
     # clf = fit_RidgeClassifier(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
     y_hat = clf.predict(test_repr.cpu().detach().numpy())
-    LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-    print('Test_acc:', LP_acc_test)
-    cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
-    print("Confusion Matrix:")
-    print(cm)
+    # LP_acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
+    # print('Test_acc:', LP_acc_test)
+    # cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
+    # print("Confusion Matrix:")
+    # print(cm)
 
     analysis.subject_wise_analysis(
         y_true=test_labels.cpu().detach().numpy(), 
         y_pred=y_hat, 
         subject_info=test_info,
+        epoch_num='pre-training',
         result_path=config['output_dir'])
 
 
@@ -99,23 +100,23 @@ def pre_training(config, Data, enable_fine_tuning=True):
         test_repr, test_labels, test_info = S2V_make_representation(best_Encoder, test_loader)
         clf = fit_lr(train_repr.cpu().detach().numpy(), train_labels.cpu().detach().numpy())
         y_hat = clf.predict(test_repr.cpu().detach().numpy())
-        acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
-        print('Test_acc:', acc_test)
-        cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
-        print("Confusion Matrix:")
-        print(cm)
+        # acc_test = accuracy_score(test_labels.cpu().detach().numpy(), y_hat)
+        # print('Test_acc:', acc_test)
+        # cm = confusion_matrix(test_labels.cpu().detach().numpy(), y_hat)
+        # print("Confusion Matrix:")
+        # print(cm)
 
         analysis.subject_wise_analysis(y_pred=y_hat, 
                                 y_true=test_labels.cpu().detach().numpy(), 
                                 subject_info=test_info,
-                                epoch_num='finetune_final',
+                                epoch_num='fine_tuning',
                                 result_path=config['output_dir']
                                 )
 
         best_test_evaluator = S2V_S_Trainer(best_Encoder, test_loader, None, config, print_conf_mat=True)
         best_aggr_metrics_test, all_metrics = best_test_evaluator.evaluate(keep_all=True)
-        all_metrics['LGR_ACC'] = acc_test #fine-tuning
-        all_metrics['LP_LGR_ACC'] = LP_acc_test #without fine-tuning
+        # all_metrics['LGR_ACC'] = acc_test #fine-tuning
+        # all_metrics['LP_LGR_ACC'] = LP_acc_test #without fine-tuning
         return best_aggr_metrics_test, all_metrics
     else: 
         return None, None
