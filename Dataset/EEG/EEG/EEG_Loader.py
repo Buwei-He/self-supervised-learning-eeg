@@ -25,7 +25,6 @@ def load_participants(file_path):
     participants_df = pd.read_csv(file_path, sep='\t')
     return participants_df
 
-
 def load_eeg(root_path, participant_id):
     # Define the EEG file path
     eeg_file = os.path.join(root_path, 'derivatives', participant_id, 'eeg', f"{participant_id}_task-eyesclosed_eeg.set")

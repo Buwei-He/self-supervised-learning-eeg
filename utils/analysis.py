@@ -56,7 +56,8 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
         
         # Store individual subject-class accuracies
         subject_class_accuracies[subject_id] = {
-            'accuracy': np.nanmax(subject_class_accuracy),
+            'subject_id': subject_id,
+            'vote_percentage': np.nanmax(subject_class_accuracy),
             'true_label': np.nanargmax(subject_class_accuracy),
             'vote_label': np.argmax(np.sum(matrix, axis=0)),
             'correct_vote': np.max(subject_true_positives) == np.max(matrix),
