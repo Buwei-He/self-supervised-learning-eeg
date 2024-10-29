@@ -1,0 +1,2 @@
+#, train_loss, test_loss, test_acc_all, test_acc_C, test_acc_A, test_acc_F, test_acc_C, test_acc_A, test_acc_F
+1, 0.05343945, 0.05344370, 0.39094042, 0.49630724, 0.42688331, 0.24963072, 0.76500000, 0.67400000, 0.73600000

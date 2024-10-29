@@ -210,7 +210,8 @@ class S2V_SS_Trainer(BaseTrainer):
         # analysis.subject_wise_analysis(y_true=test_labels.cpu().detach().numpy(), 
         #                                y_pred=test_y_hat, 
         #                                subject_info=test_info,
-        #                                epoch_num = epoch_num)
+        #                                epoch_num = epoch_num,
+        #                                result_path=self.save_path)
 
         print('Test_acc:', acc_test)
         result_file = open(f'{self.save_path}/{self.problem}_linear_result.txt', 'a+')

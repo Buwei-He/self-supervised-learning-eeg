@@ -11,7 +11,7 @@ for problem in os.listdir(config['data_dir']):
     if problem != 'EEG':
         continue
     config['problem'] = problem
-    enable_fine_tuning = True
+    enable_fine_tuning = False
     Data = dataloader.data_loader(config)
     best_aggr_metrics_test = None
     all_metrics = None
