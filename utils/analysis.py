@@ -123,7 +123,7 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
     #     print(f"subject-wise, per-class accuracy at epoch {epoch_num}:\n", df)
     
     if export_analysis:
-        output_file = os.path.join(result_path, f'analysis_{dataset}_epoch_{epoch_num}.txt')
+        output_file = os.path.join(result_path, f'analysis_{dataset}_epoch_{epoch_num}')
         np.save(output_file, analysis, allow_pickle=True)
 
     if export_subject_conf_image:
