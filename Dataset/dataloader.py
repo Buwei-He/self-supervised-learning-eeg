@@ -44,29 +44,33 @@ def tuev_loader(config):
 
 def eeg_loader(config):
     # If create data from config
-    if config['create_data']:
-        problem = config['problem']
-        # Path to dataset
-        data_path = config['data_dir'] + '/' + problem + '/'
-        # Define normalisation function
-        normalisation_fun = z_score if config['Norm'] else None
-        # Create EEG dataset from config, creates npy with processed dataset
-        Data = EEG(root_path=data_path, duration=config['duration'], sample_rate=config['sample_rate'], overlap_ratio=config['overlap_ratio'],
-            val_ratio=config['val_ratio'], test_ratio=config['test_ratio'], subset_channel_names=config['channels'],
-            MMSE_max_A=config['MMSE_max_A'], MMSE_max_F=config['MMSE_max_F'], wanted_class=config['classes'], max_train_samples=config['max_train_samples'],
-            normalisation_fun=normalisation_fun, seed=config['seed'], return_data=True)
-        Data['max_len'] = Data['train_data'].shape[2]
+    # if config['create_data']:
+    problem = config['problem']
+    # Path to dataset
+    data_path = config['data_dir'] + '/' + problem + '/'
+    # Define normalisation function
+    normalisation_fun = z_score if config['Norm'] else None
+    # Create EEG dataset from config, creates npy with processed dataset
+    Data = EEG(root_path=data_path, duration=config['duration'], sample_rate=config['sample_rate'], overlap_ratio=config['overlap_ratio'],
+        val_ratio=config['val_ratio'], test_ratio=config['test_ratio'], subset_channel_names=config['channels'],
+        MMSE_max_A=config['MMSE_max_A'], MMSE_max_F=config['MMSE_max_F'], wanted_class=config['classes'], max_train_samples=config['max_train_samples'],
+        normalisation_fun=normalisation_fun, 
+        k_fold=config['k_fold'], create_data=config['create_data'],
+        seed=config['seed'], return_data=True)
+    Data['max_len'] = Data['train_data'].shape[2]
 
-        # Logger
-        logger.info("{} samples will be used for training".format(len(Data['train_label'])))
-        samples, channels, time_steps = Data['train_data'].shape
-        logger.info(
-            "Train Data Shape is #{} samples, {} channels, {} time steps ".format(samples, channels, time_steps))
-        logger.info("{} samples will be used for testing".format(len(Data['test_label'])))
+    config['create_data'] = False
 
-    # Else use the already available .npy file
-    else:
-        Data = numpy_loader(config)
+    # Logger
+    logger.info("{} samples will be used for training".format(len(Data['train_label'])))
+    samples, channels, time_steps = Data['train_data'].shape
+    logger.info(
+        "Train Data Shape is #{} samples, {} channels, {} time steps ".format(samples, channels, time_steps))
+    logger.info("{} samples will be used for testing".format(len(Data['test_label'])))
+
+    # # Else use the already available .npy file
+    # else:
+    #     Data = numpy_loader(config)
     return Data
 
 

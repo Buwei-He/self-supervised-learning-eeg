@@ -43,6 +43,7 @@ class BaseTrainer(object):
         self.device = config['device']
         self.optimizer = config['optimizer']
         self.loss_module = config['loss_module']
+        self.k_fold = config['k_fold_cnt']
         self.l2_reg = l2_reg
         self.print_interval = print_interval
         self.printer = utils.Printer(console=console)
@@ -187,6 +188,7 @@ class S2V_SS_Trainer(BaseTrainer):
                                     y_pred=train_y_hat, 
                                     subject_info=train_info,
                                     epoch_num=epoch_num,
+                                    k_fold=self.k_fold,
                                     result_path=self.save_path)
 
         test_acc, test_class_acc = analysis.subject_wise_analysis(
@@ -194,6 +196,7 @@ class S2V_SS_Trainer(BaseTrainer):
                                     y_pred=test_y_hat, 
                                     subject_info=test_info,
                                     epoch_num=epoch_num,
+                                    k_fold=self.k_fold,
                                     result_path=self.save_path)
 
         result_file = open(f'{self.save_path}/{self.problem}_linear_result.txt', 'a+')
@@ -347,6 +350,7 @@ class S2V_S_Trainer(BaseTrainer):
         #                             y_pred=train_y_hat, 
         #                             subject_info=train_info,
         #                             epoch_num=epoch_num,
+        #                             k_fold=self.k_fold,
         #                             result_path=self.save_path)
 
         # test_acc, test_class_acc = analysis.subject_wise_analysis(
@@ -354,6 +358,7 @@ class S2V_S_Trainer(BaseTrainer):
         #                             y_pred=test_y_hat, 
         #                             subject_info=test_info,
         #                             epoch_num=epoch_num,
+        #                             k_fold=self.k_fold,
         #                             result_path=self.save_path)
 
         return self.epoch_metrics, metrics_dict

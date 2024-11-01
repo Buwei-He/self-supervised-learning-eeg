@@ -34,6 +34,12 @@ def Initialization(args):
     config['tensorboard_dir'] = os.path.join(output_dir, 'tb_summaries')
     create_dirs([config['save_dir'], config['pred_dir'], config['tensorboard_dir']])
 
+    # k-fold cross validation
+    if config['k_fold'] > 1:
+        config['k_fold_cnt'] = 1
+    else:
+        config['k_fold_cnt'] = config['k_fold']
+
     # Save configuration as a (pretty) json file
     with open(os.path.join(output_dir, 'configuration.json'), 'w') as fp:
         json.dump(config, fp, indent=4, sort_keys=True)
@@ -66,8 +72,9 @@ def create_dirs(dirs):
 parser.add_argument('--dataset', default='EEG', choices={'Benchmarks', 'UEA', 'UCR', 'EEG'})
 parser.add_argument('--output_dir', default='Results',
                     help='Root output directory. Must exist. Time-stamped directories will be created inside.')
+parser.add_argument('--k_fold', type=int, default=5, help='Use k-fold split for cross-validation; set to 0 to disable.')
 parser.add_argument('--Norm', type=bool, default=True, help='Data Normalization')
-parser.add_argument('--val_ratio', type=float, default=0.2, help="Proportion of the train-set to be used as validation")
+parser.add_argument('--val_ratio', type=float, default=0, help="Proportion of the train-set to be used as validation")
 parser.add_argument('--test_ratio', type=float, default=0.2, help="Proportion of the dataset that is kept for testing (neither in train nor validation)")
 parser.add_argument('--print_interval', type=int, default=10, help='Print batch info every this many batches')
 parser.add_argument('--duration', type=int, default=10, help='Duration (in s) for one epoch of data')
@@ -88,10 +95,10 @@ parser.add_argument('--dim_ff', type=int, default=256, help='Dimension of dense 
 parser.add_argument('--rep_size', type=int, default=512, help='Representation dimension')
 parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-headed attention heads')
 # -------------------------------------Training Parameters/ Hyper-Parameters -----------------------------------------
-parser.add_argument('--epochs', type=int, default=5, help='Number of pre-training epochs')
+parser.add_argument('--epochs', type=int, default=20, help='Number of pre-training epochs')
 parser.add_argument('--epochs_ft', type=int, default=1, help='Number of fine-tuning epochs')
 parser.add_argument('--batch_size', type=int, default=128, help='Training batch size')
-parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+parser.add_argument('--lr', type=float, default=5e-3, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.01, help='Dropout regularization ratio')
 parser.add_argument('--val_interval', type=int, default=1, help='Evaluate on validation every XX epochs. Must be >= 1')
 parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='loss',
