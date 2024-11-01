@@ -65,11 +65,12 @@ def pre_training(config, Data, enable_fine_tuning=True):
     # print("Confusion Matrix:")
     # print(cm)
 
-    analysis.subject_wise_analysis(
+    test_acc, test_class_acc = analysis.subject_wise_analysis(
         y_true=test_labels.cpu().detach().numpy(), 
         y_pred=y_hat, 
         subject_info=test_info,
         epoch_num='pre-training',
+        k_fold=config['k_fold_cnt'],
         result_path=config['output_dir'])
 
 
@@ -106,10 +107,11 @@ def pre_training(config, Data, enable_fine_tuning=True):
         # print("Confusion Matrix:")
         # print(cm)
 
-        analysis.subject_wise_analysis(y_pred=y_hat, 
+        test_acc, test_class_acc = analysis.subject_wise_analysis(y_pred=y_hat, 
                                 y_true=test_labels.cpu().detach().numpy(), 
                                 subject_info=test_info,
                                 epoch_num='fine_tuning',
+                                k_fold=config['k_fold_cnt'],
                                 result_path=config['output_dir']
                                 )
 
@@ -117,9 +119,9 @@ def pre_training(config, Data, enable_fine_tuning=True):
         best_aggr_metrics_test, all_metrics = best_test_evaluator.evaluate(keep_all=True)
         # all_metrics['LGR_ACC'] = acc_test #fine-tuning
         # all_metrics['LP_LGR_ACC'] = LP_acc_test #without fine-tuning
-        return best_aggr_metrics_test, all_metrics
-    else: 
-        return None, None
+        # return best_aggr_metrics_test, all_metrics
+    return test_acc, test_class_acc
+
 
 # This is not implemented by the author
 def TS_TCC_pre_training(config, Data):

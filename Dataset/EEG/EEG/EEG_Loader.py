@@ -128,6 +128,64 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     
     return Data
 
+def k_fold_split(patients_list, k_fold, seed):
+
+    np.random.seed = seed    
+    # Get list of subjects' group
+    groups = [subject.group for subject in patients_list]
+
+    # TODO: 
+    # 1. save the _temp_data (contains all the data) for quick loading
+    # 2. create method to split dataset by index
+
+    _data = {}
+    _data['split'] = []
+    _data['patient'] = np.array(patients_list)
+    _data['groups'] = np.array(groups)
+
+    from sklearn.model_selection import StratifiedKFold
+    skf = StratifiedKFold(n_splits=int(k_fold), random_state=seed, shuffle=True)
+    for i, (train_index, test_index) in enumerate(skf.split(patients_list, groups)):
+        # TODO: add index to dict, and save to data['split']
+        _data['split'].append({'train': train_index, 'test': test_index})
+        print(f"Fold {i}:")
+        print(f"  Train: index={train_index}")
+        print(f"  Test:  index={test_index}")
+    
+    return _data
+
+def get_k_fold_train_and_test_data(_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples):
+
+    np.random.seed = seed
+
+    # TODO:
+    # 1. load data from .npy file
+    # 2. split full set to train/test using index
+    # 3. split train set to train/val using index
+    # 4. return 
+
+    # Split subjects into training+validation and testing sets
+    Data = {}
+    train_val_index, test_index = _data['split'][k_fold-1]['train'], _data['split'][k_fold-1]['test']
+    train_val_subjects, test_subjects = _data['patient'][train_val_index], _data['patient'][test_index]
+    groups_train_val = _data['groups'][train_val_index]
+    if val_ratio == 0:
+        train_subjects = train_val_subjects
+        split_subjects = {'train':train_subjects, 'test':test_subjects}
+        Data['val_data'] = np.empty(shape=(0,0))
+        Data['val_label'] = np.empty(shape=(0,0))
+        Data['val_info'] = np.empty(shape=(0,0))
+    else:
+        # Split subjects into training and valisation sets
+        train_subjects, val_subjects = train_test_split(train_val_subjects, test_size=val_ratio, stratify=groups_train_val, random_state=seed)
+        split_subjects = {'train':train_subjects, 'val':val_subjects, 'test':test_subjects}
+    
+    for split in split_subjects.keys():
+        max_samples = max_train_samples if split == 'train' else None
+        Data[f"{split}_data"], Data[f"{split}_label"], Data[f"{split}_info"] = get_data_labels(split_subjects[split], wanted_shape, split_name=split, max_samples=max_samples)
+    
+    return Data
+
 def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
     """ Get for each split (train, val, test) the data and labels as numpy arrays and print the statistics"""
     # Print stats of subjects
@@ -192,36 +250,50 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],
         max_train_samples=None, # Max number of samples to use for each class in training
         normalisation_fun=None, #If None then no normalisation, if not None applies this function to eeg data
+        k_fold=0, create_data=False,
         seed=1234, return_data=False,
         ):
+    
     print(f'Current root path (path to EEG dataset): {root_path}')
-    participants_file = os.path.join(root_path, 'participants.tsv')
-    
-    # Load the participants data
-    participants_df = load_participants(participants_file) #Create the panda dataframe of the file.
 
-    # Create the patients list
-    patients_list = create_patients_list(root_path, participants_df)
-    patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F, wanted_class)
+    if create_data: # create new dataset, instead of load from existing file
+        participants_file = os.path.join(root_path, 'participants.tsv')
+        
+        # Load the participants data
+        participants_df = load_participants(participants_file) #Create the panda dataframe of the file.
 
-    if not normalisation_fun:
-        # If no normalisation then the function is just the identity function
-        normalisation_fun = lambda x: x
+        # Create the patients list
+        patients_list = create_patients_list(root_path, participants_df)
+        patients_list_filtered = filter_patients(patients_list, MMSE_max_A, MMSE_max_F, wanted_class)
 
-    # Normalise and downsample the EEG data to 100 Hz and create epochs of 10 seconds
-    for subject in patients_list_filtered:
-        # Apply normalisation subject wise, across all channels
-        subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
-        subject.eeg.resample(sample_rate)
-        subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
-    
-    # Get train and test data
-    Data = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, 
-                                 sample_rate, val_ratio, test_ratio, seed, max_train_samples)
+        if not normalisation_fun:
+            # If no normalisation then the function is just the identity function
+            normalisation_fun = lambda x: x
+
+        # Normalise and downsample the EEG data to 100 Hz and create epochs of 10 seconds
+        for subject in patients_list_filtered:
+            # Apply normalisation subject wise, across all channels
+            subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
+            subject.eeg.resample(sample_rate)
+            subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
+        
+        # Get train and test data
+        if k_fold < 1: # normal mode
+            Data = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, 
+                                        sample_rate, val_ratio, test_ratio, seed, max_train_samples)
+            np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
+        else: # using k-fold cross validation, create new dataset
+            k_fold_data = k_fold_split(patients_list, k_fold, seed)
+            wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
+            Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples)
+            np.save(os.path.join(root_path, 'EEG_k_fold.npy'), np.array(k_fold_data), allow_pickle=True)
+    else: # using k-fold cross validation, and load from existing file
+        k_fold_data = np.load(os.path.join(root_path, 'EEG_k_fold.npy'), allow_pickle=True).item()
+        wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
+        Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples)
 
     print(Data['train_data'].shape, Data['val_data'].shape, Data['test_data'].shape)
-    np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
-
+    
     if return_data:
         return Data
 
@@ -229,5 +301,7 @@ if __name__ == '__main__':
     root_path = './Dataset/EEG/EEG'
     EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],
         val_ratio=0.1, test_ratio=0.1, MMSE_max_A=30, MMSE_max_F=30, wanted_class=['C','F','A'],
-        normalisation_fun=z_score, seed=2024, return_data=False) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
+        normalisation_fun=z_score, 
+        k_fold=0, create_data=False,
+        seed=2024, return_data=False) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     

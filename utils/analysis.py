@@ -13,12 +13,26 @@ import logging
 from datetime import datetime
 
 
-def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_num='final'):
+def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
+                          k_fold=0, epoch_num='final',dataset='train',
+                          export_analysis = True,
+                          export_subject_accuracy = True,
+                          export_subject_conf_matrix = True,
+                          export_subject_conf_image = False,
+                          ):
+    """
+    Use np.load(path, allow_pickle=True).item() to recover analysis result.
+    """
     from sklearn.metrics import confusion_matrix
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
     import seaborn as sns
+
+    if k_fold > 0:
+        result_path = os.path.join(result_path, f'k_fold_{k_fold}')
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
     # Create a DataFrame to group by subject ID
     data_df = pd.DataFrame({'subject_id': subject_info[:, 0].astype(str), 
@@ -56,7 +70,6 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
         
         # Store individual subject-class accuracies
         subject_class_accuracies[subject_id] = {
-            'subject_id': subject_id,
             'vote_percentage': np.nanmax(subject_class_accuracy),
             'true_label': np.nanargmax(subject_class_accuracy),
             'vote_label': np.argmax(np.sum(matrix, axis=0)),
@@ -80,10 +93,7 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
     weighted_avg_accuracy = total_correct / total_predictions
 
     df = pd.DataFrame(subject_class_accuracies).T
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-        # print(f"subject-wise, per-class accuracy at epoch {epoch_num}:\n", df)
-        output_file = os.path.join(result_path, f'subject_acc_epoch_{epoch_num}.txt')
-        df.to_csv(output_file, sep='\t', index=False)
+    print(f'Analysis: k_fold = {k_fold}, epoch = {epoch_num}, on {dataset} set')
     print("Class-wise accuracy across all subjects:", class_accuracies)
     print("Weighted avg. accuracy:", weighted_avg_accuracy)
     voting_accuracy = np.mean(df['correct_vote'].values.astype(float))
@@ -93,30 +103,54 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./', epoch_
     print("Voting confusion matrix:\n", voting_conf_matrix)
     print("Voting confusion matrix, normalized:\n", voting_norm_conf_matrix)
 
-    # Set the number of rows and columns for the subplot grid
-    num_subjects = len(subject_conf_matrices)
-    cols = 3  # Adjust based on how many matrices you want per row
-    rows = (num_subjects + cols - 1) // cols  # Calculate required rows
+    # TODO: save the confusion matrix as txt file
+    analysis = {
+        'k_fold': k_fold,
+        'epoch_num': epoch_num,
+        'dataset': dataset,
+        'voting_accuracy': voting_accuracy,
+        'voting_class_accuracy': np.diag(voting_norm_conf_matrix),
+        'voting_conf_matrix': voting_conf_matrix,
+        'voting_norm_conf_matrix': voting_norm_conf_matrix,
+    }
 
-    # Set up the figure size and style
-    plt.figure(figsize=(2.4 * cols, 2.4 * rows))
-    plt.suptitle(f"Confusion Matrices for Each subject, Epoch {epoch_num}", fontsize=16)
+    if export_subject_accuracy:
+        analysis['subject_class_accuracy'] = subject_class_accuracies
+    if export_subject_conf_matrix:
+        analysis['subject_conf_matrix'] = subject_conf_matrices
 
-    # Generate a confusion matrix subplot for each subject
-    for idx, (subject_id, matrix) in enumerate(subject_conf_matrices.items(), start=1):
-        plt.subplot(rows, cols, idx)
-        sns.heatmap(matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
-        plt.title(f'Subject: {subject_id}')
-        plt.xlabel('Predicted Label')
-        plt.ylabel('True Label')
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+    #     print(f"subject-wise, per-class accuracy at epoch {epoch_num}:\n", df)
+    
+    if export_analysis:
+        output_file = os.path.join(result_path, f'analysis_{dataset}_epoch_{epoch_num}.txt')
+        np.save(output_file, analysis, allow_pickle=True)
 
-    # Adjust layout and save the figure
-    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the main title
-    output_file = os.path.join(result_path, f"conf_matrices_epoch_{epoch_num}.png")
-    plt.savefig(output_file, dpi=300)
-    plt.close()
+    if export_subject_conf_image:
+        # Set the number of rows and columns for the subplot grid
+        num_subjects = len(subject_conf_matrices)
+        cols = 6  # Adjust based on how many matrices you want per row
+        rows = (num_subjects + cols - 1) // cols  # Calculate required rows
 
-    print(f"Confusion matrices saved as {output_file}")
+        # Set up the figure size and style
+        plt.figure(figsize=(2.4 * cols, 2.4 * rows))
+        plt.suptitle(f"Confusion Matrices for Each subject, Epoch {epoch_num}", fontsize=16)
+
+        # Generate a confusion matrix subplot for each subject
+        for idx, (subject_id, matrix) in enumerate(subject_conf_matrices.items(), start=1):
+            plt.subplot(rows, cols, idx)
+            sns.heatmap(matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
+            plt.title(f'sub-0{subject_id}')
+            plt.xlabel('Predicted Label')
+            plt.ylabel('True Label')
+
+        # Adjust layout and save the figure
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the main title
+        output_file = os.path.join(result_path, f"conf_matrices_epoch_{epoch_num}.png")
+        plt.savefig(output_file, dpi=300)
+        plt.close()
+
+        print(f"Confusion matrices saved as {output_file}")
     return voting_accuracy, np.diag(voting_norm_conf_matrix)
 
 
