@@ -98,7 +98,7 @@ parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-he
 parser.add_argument('--epochs', type=int, default=20, help='Number of pre-training epochs')
 parser.add_argument('--epochs_ft', type=int, default=1, help='Number of fine-tuning epochs')
 parser.add_argument('--batch_size', type=int, default=128, help='Training batch size')
-parser.add_argument('--lr', type=float, default=5e-3, help='learning rate')
+parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.01, help='Dropout regularization ratio')
 parser.add_argument('--val_interval', type=int, default=1, help='Evaluate on validation every XX epochs. Must be >= 1')
 parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='loss',
