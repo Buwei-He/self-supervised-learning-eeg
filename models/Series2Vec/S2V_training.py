@@ -196,6 +196,7 @@ class S2V_SS_Trainer(BaseTrainer):
                                     y_pred=test_y_hat, 
                                     subject_info=test_info,
                                     epoch_num=epoch_num,
+                                    dataset='test',
                                     k_fold=self.k_fold,
                                     result_path=self.save_path)
 

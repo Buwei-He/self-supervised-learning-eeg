@@ -71,6 +71,7 @@ def pre_training(config, Data, enable_fine_tuning=True):
         subject_info=test_info,
         epoch_num='pre-training',
         k_fold=config['k_fold_cnt'],
+        dataset='test',
         result_path=config['output_dir'])
 
 
@@ -112,6 +113,7 @@ def pre_training(config, Data, enable_fine_tuning=True):
                                 subject_info=test_info,
                                 epoch_num='fine_tuning',
                                 k_fold=config['k_fold_cnt'],
+                                dataset='test',
                                 result_path=config['output_dir']
                                 )
 

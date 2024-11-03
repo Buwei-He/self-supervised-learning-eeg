@@ -80,7 +80,7 @@ parser.add_argument('--print_interval', type=int, default=10, help='Print batch 
 parser.add_argument('--duration', type=int, default=10, help='Duration (in s) for one epoch of data')
 parser.add_argument('--sample_rate', type=int, default=100, help='Resampling rate of EEG signal')
 parser.add_argument('--overlap_ratio', type=float, default=0, help="Overlap ratio of epochs")
-parser.add_argument('--channels', default=['Cz','Pz'], help='EEG channels to consider, "all" for all channels')
+parser.add_argument('--channels', default=['Cz','Pz', 'Fp1','Fp2'], help='EEG channels to consider, "all" for all channels')
 parser.add_argument('--MMSE_max_A', type=int, default=30, help='Max MMSE score for AD subjects')
 parser.add_argument('--MMSE_max_F', type=int, default=30, help='Max MMSE score for FTD scubjects')
 parser.add_argument('--classes', type=List[str], default=['A','C','F'], help='Classes to use in EEG problem')
