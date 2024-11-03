@@ -230,7 +230,17 @@ def get_data_labels(subjects, wanted_shape, split_name='', max_samples=None):
         labels.extend([[group]*len(filtered_data_idx)])
         new_count_epochs[group] = len(filtered_data_idx)
 
-    print(f'''{split_name}: {len(subjects)} sub = {count_groups['A']} AD ({count_epochs['A'],new_count_epochs['A']}), {count_groups['F']} FTD ({count_epochs['F'],new_count_epochs['F']}), {count_groups['C']} HC ({count_epochs['C'], new_count_epochs['C']})''')
+    # print(f'''{split_name}: {len(subjects)} sub = {count_groups['A']} AD ({count_epochs['A'],new_count_epochs['A']}), {count_groups['F']} FTD ({count_epochs['F'],new_count_epochs['F']}), {count_groups['C']} HC ({count_epochs['C'], new_count_epochs['C']})''')
+    
+    class_labels = {'A': 'AD', 'F': 'FTD', 'C': 'HC'}
+    class_count_str = []
+
+    for class_key, class_name in class_labels.items():
+        if class_key in count_groups:
+            class_count_str.append(f"{count_groups[class_key]} {class_name} ({count_epochs[class_key]}, {new_count_epochs[class_key]})")
+
+    print(f"{split_name}: {len(subjects)} sub = {', '.join(class_count_str)}")
+
     # Get epochs and labels for each subject
     labels = map_categories_to_numbers(np.concatenate(labels, axis=0))
     # Check shape
@@ -283,7 +293,7 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
                                         sample_rate, val_ratio, test_ratio, seed, max_train_samples)
             np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
         else: # using k-fold cross validation, create new dataset
-            k_fold_data = k_fold_split(patients_list, k_fold, seed)
+            k_fold_data = k_fold_split(patients_list_filtered, k_fold, seed)
             wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
             Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples)
             np.save(os.path.join(root_path, 'EEG_k_fold.npy'), np.array(k_fold_data), allow_pickle=True)

@@ -11,7 +11,7 @@ from tabulate import tabulate
 import math
 import logging
 from datetime import datetime
-
+from utils.eeg_utils import map_numbers_to_categories
 
 def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
                           k_fold=0, epoch_num='final',dataset='train',
@@ -42,16 +42,19 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
 
     # Initialize dictionaries to store each subject's confusion matrix and metrics
     subject_conf_matrices = {}
-    labels = np.unique(y_true)
+    labels = np.sort(np.unique(y_true))
+    label_names = map_numbers_to_categories(labels)
+    label_name_mapping = {label_names[i]: labels[i] for i in range(len(labels))}
 
     # Calculate confusion matrix and metrics for each subject
     for subject_id, group in data_df.groupby('subject_id'):
         
-        y_true_subject = group['y_true']
-        y_pred_subject = group['y_pred']
+        y_true_subject = map_numbers_to_categories(group['y_true'].values)
+        y_pred_subject = map_numbers_to_categories(group['y_pred'].values)
         
         # Generate confusion matrix for this subject
-        conf_matrix = confusion_matrix(y_true_subject, y_pred_subject, labels=labels)
+        conf_matrix = confusion_matrix(y_true_subject, y_pred_subject, labels=label_names)
+        assert np.all(y_true_subject == y_true_subject[0])
         subject_conf_matrices[subject_id] = conf_matrix
 
     # Initialize variables
@@ -71,8 +74,8 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
         # Store individual subject-class accuracies
         subject_class_accuracies[subject_id] = {
             'vote_percentage': np.nanmax(subject_class_accuracy),
-            'true_label': np.nanargmax(subject_class_accuracy),
-            'vote_label': np.argmax(np.sum(matrix, axis=0)),
+            'true_label': label_names[np.nanargmax(subject_class_accuracy)],
+            'vote_label': label_names[np.argmax(np.sum(matrix, axis=0))],
             'correct_vote': np.max(subject_true_positives) == np.max(matrix),
         }
 
@@ -96,20 +99,27 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
     print(f'Analysis: k_fold = {k_fold}, epoch = {epoch_num}, on {dataset} set')
     print("Class-wise accuracy across all subjects:", class_accuracies)
     print("Weighted avg. accuracy:", weighted_avg_accuracy)
-    voting_accuracy = np.mean(df['correct_vote'].values.astype(float))
-    voting_conf_matrix = confusion_matrix(df['true_label'].values.astype(int), df['vote_label'].values.astype(int), labels=labels)
-    voting_norm_conf_matrix = voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis]
-    print("Voting accuracy:", voting_accuracy)
-    print("Voting confusion matrix:\n", voting_conf_matrix)
-    print("Voting confusion matrix, normalized:\n", voting_norm_conf_matrix)
+
+    voting_conf_matrix = confusion_matrix(df['true_label'].values, df['vote_label'].values, labels=label_names)
+    voting_norm_conf_matrix = np.nan_to_num(voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis], nan=0)
+    voting_acc = np.diag(voting_norm_conf_matrix)
+    voting_avg_acc = np.mean(df['correct_vote'].values.astype(float))
+    # update: convert to dataframe for compatibility with binary classification
+    voting_conf_df = pd.DataFrame(data=voting_conf_matrix, columns=label_names, index=label_names)
+    voting_norm_conf_df = pd.DataFrame(data=voting_norm_conf_matrix, columns=label_names, index=label_names)
+    voting_acc_df = pd.DataFrame(data=voting_acc[np.newaxis, :], columns=label_names, index=['acc.'])
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print("Voting accuracy:\n", voting_acc_df)
+        print("Voting confusion matrix:\n", voting_conf_df)
+        print("Voting confusion matrix, normalized:\n", voting_norm_conf_df)
 
     # TODO: save the confusion matrix as txt file
     analysis = {
         'k_fold': k_fold,
         'epoch_num': epoch_num,
         'dataset': dataset,
-        'voting_accuracy': voting_accuracy,
-        'voting_class_accuracy': np.diag(voting_norm_conf_matrix),
+        'voting_accuracy': voting_avg_acc,
+        'voting_class_accuracy': voting_acc,
         'voting_conf_matrix': voting_conf_matrix,
         'voting_norm_conf_matrix': voting_norm_conf_matrix,
     }
@@ -151,7 +161,7 @@ def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
         plt.close()
 
         print(f"Confusion matrices saved as {output_file}")
-    return voting_accuracy, np.diag(voting_norm_conf_matrix)
+    return voting_avg_acc, voting_acc_df
 
 
 def acc_top_k(predictions, y_true):

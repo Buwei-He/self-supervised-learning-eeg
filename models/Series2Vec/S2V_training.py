@@ -203,19 +203,21 @@ class S2V_SS_Trainer(BaseTrainer):
         result_file = open(f'{self.save_path}/{self.problem}_linear_result.txt', 'a+')
         
         # Add to tensorboard
-        unique_classes = np.unique(test_labels.cpu().detach().numpy())
+        unique_classes = map_numbers_to_categories(np.unique(test_labels.cpu().detach().numpy()))
         class_accuracies = {}
         keys_str = ''
         values_str = ''
         for cls in unique_classes:
-            class_accuracies[f'test_class_{map_numbers_to_categories(cls)}'] = test_class_acc[cls]
-            keys_str += f', test_acc_{map_numbers_to_categories(cls)}'
-            values_str += ', {0:.8f}'.format(test_class_acc[cls])
+            cls_acc = (test_class_acc[cls].values)[0]
+            class_accuracies[f'test_class_{cls}'] = cls_acc
+            keys_str += f', test_acc_{cls}'
+            values_str += ', {0:.8f}'.format(cls_acc)
 
         for cls in unique_classes:
-            class_accuracies[f'train_class_{map_numbers_to_categories(cls)}'] = train_class_acc[cls]
-            keys_str += f', train_acc_{map_numbers_to_categories(cls)}'
-            values_str += ', {0:.8f}'.format(train_class_acc[cls])
+            cls_acc = (train_class_acc[cls].values)[0]
+            class_accuracies[f'train_class_{cls}'] = cls_acc
+            keys_str += f', train_acc_{cls}'
+            values_str += ', {0:.8f}'.format(cls_acc)
 
 
         # Log class-wise accuracies to TensorBoard

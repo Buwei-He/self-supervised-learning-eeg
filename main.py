@@ -22,7 +22,7 @@ if __name__ == '__main__':
                 if config['Model_Type'][0] == 'Series2Vec':
                     test_acc, test_cls_acc = pre_training(config, Data, enable_fine_tuning)
                     scores.append(test_acc)
-                    scores_cls.append(test_cls_acc.tolist())
+                    scores_cls.append(test_cls_acc.values.tolist())
             elif config['Training_mode'] == 'Supervised':
                 best_aggr_metrics_test, all_metrics = supervised(config, Data)
 
