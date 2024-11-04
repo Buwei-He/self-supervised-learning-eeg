@@ -4,6 +4,7 @@ from Dataset import dataloader
 from models.runner import supervised, pre_training, linear_probing
 import numpy as np
 import warnings
+from utils.utils import set_seed
 
 warnings.simplefilter('ignore')
 
@@ -17,6 +18,8 @@ if __name__ == '__main__':
         enable_fine_tuning = False
 
         while config['k_fold'] >= config['k_fold_cnt']:
+            #Reinitialize random seed to have same initialisation of models
+            set_seed(config['seed'])
             Data = dataloader.data_loader(config)
             if config['Training_mode'] == 'Pre_Training':
                 if config['Model_Type'][0] == 'Series2Vec':

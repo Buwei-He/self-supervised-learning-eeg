@@ -134,9 +134,8 @@ def get_train_and_test_data(patients_list, subset_channel_names, duration, sampl
     
     return Data
 
-def k_fold_split(patients_list, k_fold, seed):
+def k_fold_split(patients_list, nb_k_fold, seed):
 
-    np.random.seed = seed    
     # Get list of subjects' group
     groups = [subject.group for subject in patients_list]
 
@@ -150,7 +149,7 @@ def k_fold_split(patients_list, k_fold, seed):
     _data['groups'] = np.array(groups)
 
     from sklearn.model_selection import StratifiedKFold
-    skf = StratifiedKFold(n_splits=int(k_fold), random_state=seed, shuffle=True)
+    skf = StratifiedKFold(n_splits=int(nb_k_fold), random_state=seed, shuffle=True)
     for i, (train_index, test_index) in enumerate(skf.split(patients_list, groups)):
         # TODO: add index to dict, and save to data['split']
         _data['split'].append({'train': train_index, 'test': test_index})
@@ -160,9 +159,7 @@ def k_fold_split(patients_list, k_fold, seed):
     
     return _data
 
-def get_k_fold_train_and_test_data(_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples):
-
-    np.random.seed = seed
+def get_k_fold_train_and_test_data(_data, wanted_shape, val_ratio, k_fold_cnt, seed, max_train_samples):
 
     # TODO:
     # 1. load data from .npy file
@@ -172,7 +169,9 @@ def get_k_fold_train_and_test_data(_data, wanted_shape, val_ratio, k_fold, seed,
 
     # Split subjects into training+validation and testing sets
     Data = {}
-    train_val_index, test_index = _data['split'][k_fold-1]['train'], _data['split'][k_fold-1]['test']
+    train_val_index, test_index = _data['split'][k_fold_cnt-1]['train'], _data['split'][k_fold_cnt-1]['test']
+    print('\nTRAINVAL INDEX: ', train_val_index)
+    print('\TEST INDEX ', test_index)
     train_val_subjects, test_subjects = _data['patient'][train_val_index], _data['patient'][test_index]
     groups_train_val = _data['groups'][train_val_index]
     if val_ratio == 0:
@@ -266,7 +265,7 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         subset_channel_names=['Cz', 'Pz', 'Fz'], MMSE_max_A=25, MMSE_max_F=30,wanted_class=['A','C','F'],
         max_train_samples=None, # Max number of samples to use for each class in training
         normalisation_fun=None, #If None then no normalisation, if not None applies this function to eeg data
-        k_fold=0, create_data=False,
+        nb_k_fold=0, k_fold_cnt=1, create_data=False,
         seed=1234, return_data=False,
         is_analysis=False, #If True then returns other demographics info
         crop=60, #Duration (in s) to crop at start and end of recording
@@ -294,23 +293,25 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
         for subject in patients_list_filtered:
             # Apply normalisation subject wise, across all channels
             subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
-            subject.eeg.resample(sample_rate)
-            subject.epochs = get_epochs(subject, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
+            subject.epochs = get_epochs(subject, sample_rate=sample_rate, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
+            # Drop outliers
+            #TODO see if causes problems with k fold
+            #subject.epochs.drop_bad(reject={'eeg':reject_threshold}, flat={'eeg':flat_threshold}, verbose=0)
         
         # Get train and test data
-        if k_fold < 1: # normal mode
+        if nb_k_fold < 1: # normal mode
             Data = get_train_and_test_data(patients_list_filtered, subset_channel_names, duration, 
                                         sample_rate, val_ratio, test_ratio, seed, max_train_samples)
             np.save(os.path.join(root_path, 'EEG.npy'), Data, allow_pickle=True)
         else: # using k-fold cross validation, create new dataset
-            k_fold_data = k_fold_split(patients_list_filtered, k_fold, seed)
+            k_fold_data = k_fold_split(patients_list_filtered, nb_k_fold, seed)
             wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
-            Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples)
+            Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold_cnt, seed, max_train_samples)
             np.save(os.path.join(root_path, 'EEG_k_fold.npy'), np.array(k_fold_data), allow_pickle=True)
     else: # using k-fold cross validation, and load from existing file
         k_fold_data = np.load(os.path.join(root_path, 'EEG_k_fold.npy'), allow_pickle=True).item()
         wanted_shape = (len(subset_channel_names), int(duration * sample_rate))
-        Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold, seed, max_train_samples)
+        Data = get_k_fold_train_and_test_data(k_fold_data, wanted_shape, val_ratio, k_fold_cnt, seed, max_train_samples)
 
     print(Data['train_data'].shape, Data['val_data'].shape, Data['test_data'].shape)
     
@@ -322,6 +323,6 @@ if __name__ == '__main__':
     EEG(root_path, duration=10, sample_rate=100, overlap_ratio=0, subset_channel_names=['Cz', 'Pz'],
         val_ratio=0.1, test_ratio=0.1, MMSE_max_A=30, MMSE_max_F=30, wanted_class=['C','F','A'],
         normalisation_fun=z_score, 
-        k_fold=0, create_data=False,
+        nb_k_fold=0, k_fold_cnt=1, create_data=False,
         seed=2024, return_data=False) # 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz'
     

@@ -252,7 +252,7 @@ class S2V_SS_Trainer(BaseTrainer):
         tensorboard_writer.add_scalars(f'loss', {'train_freq':epoch_train_loss[2]}, epoch_num)
 
         if epoch_num == 1:
-            print(f'#, train_loss, test_loss, test_acc_all{keys_str}', file=result_file)
+            print(f'#, train_loss, test_loss, train_acc_all, test_acc_all{keys_str}', file=result_file)
 
         print('{0}, {1:.8f}, {2:.8f}, {3:.8f}, {4:.8f}{5}'.format(
             epoch_num, epoch_train_loss[0], epoch_test_loss[0], train_acc, test_acc, values_str

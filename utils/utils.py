@@ -5,6 +5,7 @@ import builtins
 import functools
 import time
 import ipdb
+import random
 from copy import deepcopy
 from torch.utils.data import Dataset, DataLoader
 from sklearn import model_selection
@@ -445,3 +446,8 @@ def compute_loss(net: torch.nn.Module,
             running_loss += loss_function(y, netout)
 
     return running_loss / len(dataloader)
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
