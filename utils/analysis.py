@@ -4,13 +4,164 @@ by showing confusion matrix, accuracy, recall, precision etc.
 """
 
 import numpy as np
-import sys
+import sys, os
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from tabulate import tabulate
 import math
 import logging
 from datetime import datetime
+from utils.eeg_utils import map_numbers_to_categories
+
+def subject_wise_analysis(y_true, y_pred, subject_info, result_path='./',
+                          k_fold=0, epoch_num='final',dataset='train',
+                          export_analysis = True,
+                          export_subject_accuracy = True,
+                          export_subject_conf_matrix = True,
+                          export_subject_conf_image = False,
+                          ):
+    """
+    Use np.load(path, allow_pickle=True).item() to recover analysis result.
+    """
+    from sklearn.metrics import confusion_matrix
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    if k_fold > 0:
+        result_path = os.path.join(result_path, f'k_fold_{k_fold}')
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+
+    # Create a DataFrame to group by subject ID
+    data_df = pd.DataFrame({'subject_id': subject_info[:, 0].astype(str), 
+                            'y_true': y_true, 
+                            'y_pred': y_pred, 
+                            'start_time': subject_info[:, 1]})
+
+    # Initialize dictionaries to store each subject's confusion matrix and metrics
+    subject_conf_matrices = {}
+    labels = np.sort(np.unique(y_true))
+    label_names = map_numbers_to_categories(labels)
+    label_name_mapping = {label_names[i]: labels[i] for i in range(len(labels))}
+
+    # Calculate confusion matrix and metrics for each subject
+    for subject_id, group in data_df.groupby('subject_id'):
+        
+        y_true_subject = map_numbers_to_categories(group['y_true'].values)
+        y_pred_subject = map_numbers_to_categories(group['y_pred'].values)
+        
+        # Generate confusion matrix for this subject
+        conf_matrix = confusion_matrix(y_true_subject, y_pred_subject, labels=label_names)
+        assert np.all(y_true_subject == y_true_subject[0])
+        subject_conf_matrices[subject_id] = conf_matrix
+
+    # Initialize variables
+    class_counts = None  # To store sum of instances for each class across all subjects
+    true_positives = None  # To store sum of true positives for each class across all subjects
+    total_correct = 0  # To count total correct predictions across all subjects
+    total_predictions = 0  # To count all predictions across all subjects
+
+    # To store results per subject and class
+    subject_class_accuracies = {}
+    
+    for subject_id, matrix in subject_conf_matrices.items():
+        subject_true_positives = np.diag(matrix)
+        class_totals = matrix.sum(axis=1)
+        subject_class_accuracy = subject_true_positives / class_totals
+        
+        # Store individual subject-class accuracies
+        subject_class_accuracies[subject_id] = {
+            'vote_percentage': np.nanmax(subject_class_accuracy),
+            'true_label': label_names[np.nanargmax(subject_class_accuracy)],
+            'vote_label': label_names[np.argmax(np.sum(matrix, axis=0))],
+            'correct_vote': np.max(subject_true_positives) == np.max(matrix),
+        }
+
+        # Aggregate true positives and class totals across all subjects
+        if true_positives is None:
+            true_positives = subject_true_positives
+            class_counts = class_totals
+        else:
+            true_positives = true_positives + subject_true_positives
+            class_counts += class_totals
+
+        # Update overall accuracy counters
+        total_correct += subject_true_positives.sum()
+        total_predictions += matrix.sum()
+
+
+    class_accuracies = true_positives / class_counts
+    weighted_avg_accuracy = total_correct / total_predictions
+
+    df = pd.DataFrame(subject_class_accuracies).T
+    print(f'Analysis: k_fold = {k_fold}, epoch = {epoch_num}, on {dataset} set')
+    print("Class-wise accuracy across all subjects:", class_accuracies)
+    print("Weighted avg. accuracy:", weighted_avg_accuracy)
+
+    voting_conf_matrix = confusion_matrix(df['true_label'].values, df['vote_label'].values, labels=label_names)
+    voting_norm_conf_matrix = np.nan_to_num(voting_conf_matrix / voting_conf_matrix.sum(axis=1)[:, np.newaxis], nan=0)
+    voting_acc = np.diag(voting_norm_conf_matrix)
+    voting_avg_acc = np.mean(df['correct_vote'].values.astype(float))
+    # update: convert to dataframe for compatibility with binary classification
+    voting_conf_df = pd.DataFrame(data=voting_conf_matrix, columns=label_names, index=label_names)
+    voting_norm_conf_df = pd.DataFrame(data=voting_norm_conf_matrix, columns=label_names, index=label_names)
+    voting_acc_df = pd.DataFrame(data=voting_acc[np.newaxis, :], columns=label_names, index=['acc.'])
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print("Voting accuracy:\n", voting_acc_df)
+        print("Voting confusion matrix:\n", voting_conf_df)
+        print("Voting confusion matrix, normalized:\n", voting_norm_conf_df)
+
+    # TODO: save the confusion matrix as txt file
+    analysis = {
+        'k_fold': k_fold,
+        'epoch_num': epoch_num,
+        'dataset': dataset,
+        'voting_accuracy': voting_avg_acc,
+        'voting_class_accuracy': voting_acc,
+        'voting_conf_matrix': voting_conf_matrix,
+        'voting_norm_conf_matrix': voting_norm_conf_matrix,
+    }
+
+    if export_subject_accuracy:
+        analysis['subject_class_accuracy'] = subject_class_accuracies
+    if export_subject_conf_matrix:
+        analysis['subject_conf_matrix'] = subject_conf_matrices
+
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+    #     print(f"subject-wise, per-class accuracy at epoch {epoch_num}:\n", df)
+    
+    if export_analysis:
+        output_file = os.path.join(result_path, f'analysis_{dataset}_epoch_{epoch_num}')
+        np.save(output_file, analysis, allow_pickle=True)
+
+    if export_subject_conf_image:
+        # Set the number of rows and columns for the subplot grid
+        num_subjects = len(subject_conf_matrices)
+        cols = 6  # Adjust based on how many matrices you want per row
+        rows = (num_subjects + cols - 1) // cols  # Calculate required rows
+
+        # Set up the figure size and style
+        plt.figure(figsize=(2.4 * cols, 2.4 * rows))
+        plt.suptitle(f"Confusion Matrices for Each subject, Epoch {epoch_num}", fontsize=16)
+
+        # Generate a confusion matrix subplot for each subject
+        for idx, (subject_id, matrix) in enumerate(subject_conf_matrices.items(), start=1):
+            plt.subplot(rows, cols, idx)
+            sns.heatmap(matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
+            plt.title(f'sub-0{subject_id}')
+            plt.xlabel('Predicted Label')
+            plt.ylabel('True Label')
+
+        # Adjust layout and save the figure
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the main title
+        output_file = os.path.join(result_path, f"conf_matrices_epoch_{epoch_num}.png")
+        plt.savefig(output_file, dpi=300)
+        plt.close()
+
+        print(f"Confusion matrices saved as {output_file}")
+    return voting_avg_acc, voting_acc_df
 
 
 def acc_top_k(predictions, y_true):

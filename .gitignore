@@ -10,4 +10,4 @@
 *.npy
 *.mat
 *.dat
-
+/EEG/*
