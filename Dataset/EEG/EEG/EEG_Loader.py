@@ -170,8 +170,6 @@ def get_k_fold_train_and_test_data(_data, wanted_shape, val_ratio, k_fold_cnt, s
     # Split subjects into training+validation and testing sets
     Data = {}
     train_val_index, test_index = _data['split'][k_fold_cnt-1]['train'], _data['split'][k_fold_cnt-1]['test']
-    print('\nTRAINVAL INDEX: ', train_val_index)
-    print('\TEST INDEX ', test_index)
     train_val_subjects, test_subjects = _data['patient'][train_val_index], _data['patient'][test_index]
     groups_train_val = _data['groups'][train_val_index]
     if val_ratio == 0:

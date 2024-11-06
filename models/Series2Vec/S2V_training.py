@@ -251,7 +251,7 @@ class S2V_SS_Trainer(BaseTrainer):
         tensorboard_writer.add_scalars(f'loss', {'train_time':epoch_train_loss[1]}, epoch_num)
         tensorboard_writer.add_scalars(f'loss', {'train_freq':epoch_train_loss[2]}, epoch_num)
 
-        if epoch_num == 1:
+        if epoch_num == 0:
             print(f'#, train_loss, test_loss, train_acc_all, test_acc_all{keys_str}', file=result_file)
 
         print('{0}, {1:.8f}, {2:.8f}, {3:.8f}, {4:.8f}{5}'.format(
@@ -436,6 +436,23 @@ def SS_train_runner(config, model, trainer, path):
     metrics = []  # (for validation) list of lists: for each epoch, stores metrics like loss, ...
     save_best_model = utils.SaveBestModel()
     Total_loss = []
+
+    # Evaluate before training
+    # Soft-DTW related loss on test dataset
+    epoch_train_loss = np.zeros(3)
+    total_samples = 0  # total samples in epoch
+
+    for i, batch in enumerate(trainer.train_loader):
+        X, _, IDs = batch
+        total_loss, time_loss, freq_loss = trainer.ss_training_loss_fn(model, X, get_all_losses=True)
+        total_samples += 1
+        epoch_train_loss[0] += total_loss.item()
+        epoch_train_loss[1] += time_loss.item()
+        epoch_train_loss[2] += freq_loss.item()
+
+    epoch_train_loss = epoch_train_loss / total_samples
+    trainer.evaluate(epoch_num=0, epoch_train_loss=epoch_train_loss)
+
     for epoch in tqdm(range(start_epoch + 1, epochs + 1), desc='Training Epoch', leave=False):
 
         aggr_metrics_train = trainer.train_epoch(epoch)  # dictionary of aggregate epoch metrics
