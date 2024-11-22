@@ -1,0 +1,8 @@
+#, train_loss, test_loss, train_acc_all, test_acc_all, test_acc_C, test_acc_A, test_acc_F, train_acc_C, train_acc_A, train_acc_F
+1, 0.02044733, 0.01444179, 0.72727273, 0.50000000, 0.87500000, 0.44444444, 0.00000000, 0.80952381, 0.55555556, 0.83333333
+#, train_loss, test_loss, train_acc_all, test_acc_all, test_acc_C, test_acc_A, test_acc_F, train_acc_C, train_acc_A, train_acc_F
+1, 0.02004822, 0.01270109, 0.72727273, 0.31818182, 0.28571429, 0.33333333, 0.33333333, 0.81818182, 0.70370370, 0.64705882
+#, train_loss, test_loss, train_acc_all, test_acc_all, test_acc_C, test_acc_A, test_acc_F, train_acc_C, train_acc_A, train_acc_F
+1, 0.02199158, 0.01213828, 0.74242424, 0.54545455, 0.71428571, 0.55555556, 0.33333333, 0.86363636, 0.74074074, 0.58823529
+#, train_loss, test_loss, train_acc_all, test_acc_all, test_acc_C, test_acc_A, test_acc_F, train_acc_C, train_acc_A, train_acc_F
+1, 0.02238924, 0.01099650, 0.68181818, 0.45454545, 0.85714286, 0.44444444, 0.00000000, 0.77272727, 0.85185185, 0.29411765

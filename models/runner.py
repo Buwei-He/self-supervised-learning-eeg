@@ -23,6 +23,64 @@ def choose_trainer(model, train_loader, test_loader, config, conf_mat, type):
     return S_trainer
 
 
+def rocket_training(config, Data):
+    from sktime.classification.kernel_based import RocketClassifier
+    clf_name = config['Model_Type'][0]
+    logger.info(f"Initializing {clf_name} Classifier ...")
+
+    # Initialize ROCKET Classifier
+    model = Model_factory(config, Data)
+
+    # Prepare Data Loaders
+    train_dataset = dataset_class(Data['train_data'], Data['train_label'], config, meta_info=Data['train_info'])
+    test_dataset = dataset_class(Data['test_data'], Data['test_label'], config, meta_info=Data['test_info'])
+
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
+
+    # Convert DataLoader to numpy arrays for RocketClassifier
+    def get_data_from_loader(loader):
+        data = []
+        labels = []
+        meta_infos = []
+
+        for i, batch in enumerate(loader):
+            X, targets, IDs = batch
+            data.append(X.cpu().detach().numpy())
+            labels.append(targets.cpu().detach().numpy())
+            if loader.dataset.meta_info is not None:
+                meta_infos.append(loader.dataset.meta_info[IDs])
+
+        data = np.concatenate(data, axis=0)
+        labels = np.concatenate(labels, axis=0)
+        if loader.dataset.meta_info is not None:
+            meta_infos = np.concatenate(meta_infos, axis=0)
+            return data, labels, meta_infos
+        else:
+            return data, labels, None
+
+    train_data, train_labels, train_info = get_data_from_loader(train_loader)
+    test_data, test_labels, test_info = get_data_from_loader(test_loader)
+
+    # Train the model
+    logger.info(f"Training {clf_name} Classifier ...")
+    model.fit(train_data, train_labels)
+
+    # Evaluate the model
+    logger.info(f"Evaluating {clf_name} Classifier ...")
+    y_hat = model.predict(test_data)
+    test_acc, test_class_acc = analysis.subject_wise_analysis(
+        y_true=test_labels, 
+        y_pred=y_hat, 
+        subject_info=test_info,
+        epoch_num='pre-training',
+        k_fold=config['k_fold_cnt'],
+        dataset='test',
+        result_path=config['output_dir'])
+
+    return test_acc, test_class_acc
+
+
 def pre_training(config, Data, enable_fine_tuning=True):
     logger.info("Creating Distance based Self Supervised model ...")
     model = Model_factory(config, Data)

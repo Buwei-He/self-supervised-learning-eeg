@@ -1,7 +1,7 @@
 import os
 from utils import args
 from Dataset import dataloader
-from models.runner import supervised, pre_training, linear_probing
+from models.runner import supervised, pre_training, rocket_training
 import numpy as np
 import warnings
 from utils.utils import set_seed
@@ -18,7 +18,7 @@ if __name__ == '__main__':
         enable_fine_tuning = False
 
         while config['k_fold'] >= config['k_fold_cnt']:
-            #Reinitialize random seed to have same initialisation of models
+            # Re-initialize random seed to have same initialisation of models
             set_seed(config['seed'])
             Data = dataloader.data_loader(config)
             if config['Training_mode'] == 'Pre_Training':
@@ -27,7 +27,12 @@ if __name__ == '__main__':
                     scores.append(test_acc)
                     scores_cls.append(test_cls_acc.values.tolist())
             elif config['Training_mode'] == 'Supervised':
-                best_aggr_metrics_test, all_metrics = supervised(config, Data)
+                if config['Model_Type'][0] in ['rocket', 'minirocket', 'multirocket']:
+                    test_acc, test_cls_acc = rocket_training(config, Data)
+                    scores.append(test_acc)
+                    scores_cls.append(test_cls_acc.values.tolist())
+                else:
+                    best_aggr_metrics_test, all_metrics = supervised(config, Data)
 
             config['k_fold_cnt'] += 1
     print(scores)

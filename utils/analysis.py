@@ -628,3 +628,5 @@ class Analyzer(object):
         return {"total_accuracy": self.total_accuracy, "precision": self.precision, "recall": self.recall,
                 "f1": self.f1, "support": self.support, "prec_avg": self.prec_avg, "rec_avg": self.rec_avg,
                 "ConfMatrix": ConfMatrix}
+
+

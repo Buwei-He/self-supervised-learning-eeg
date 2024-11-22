@@ -136,8 +136,8 @@ def visualize_nd(X, y, reducer_type='tsne', problem='Skoda', n_components=2, n_p
 
 if __name__ == '__main__':
     problem = "EEG"
-    root_path = "/home/buwei/dd2430/self-supervised-learning-eeg"
-    result_path = "Results/Pre_Training/EEG/CF_0.75"
+    root_path = "/home/shouzheyun/Series2Vec/"
+    result_path = "Results/Pre_Training/EEG/AC_0.77"
     config = load_config_from_json(root_path, result_path, problem)
     Data = data_loader(config)
     model = Model_factory(config, Data)
@@ -168,5 +168,6 @@ if __name__ == '__main__':
             reducer_type='umap', # 'tsne', 'umap', 'pca'
             problem=problem, 
             n_components=20, # 2, 3
-            n_points=100
-            )
+            n_points=1000
+    )
+
