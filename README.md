@@ -28,7 +28,7 @@ only use `Python 3.8`, Linux
 `pip install -r requirements.txt`
 
 ## Run
-Run main.py with the desired arguments. Those are defined in utils/args.py.
+Run `main.py` with the desired arguments. Those are defined in `utils/args.py`.
 
 ## References
 

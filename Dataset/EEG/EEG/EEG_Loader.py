@@ -293,8 +293,13 @@ def EEG(root_path=os.getcwd(), duration=10, sample_rate=100, overlap_ratio=0.5, 
             subject.eeg.apply_function(normalisation_fun, picks='all', channel_wise=False)
             subject.epochs = get_epochs(subject, sample_rate=sample_rate, duration=duration, overlap_ratio=overlap_ratio, subset_channel_names=subset_channel_names)
             # Drop outliers
-            #TODO see if causes problems with k fold
-            #subject.epochs.drop_bad(reject={'eeg':reject_threshold}, flat={'eeg':flat_threshold}, verbose=0)
+            if reject_threshold != -1:
+                if flat_threshold != -1:
+                    subject.epochs.drop_bad(reject={'eeg':reject_threshold}, flat={'eeg':flat_threshold}, verbose=0)
+                else:
+                    subject.epochs.drop_bad(reject={'eeg':reject_threshold}, verbose=0)
+            if flat_threshold != -1:
+                subject.epochs.drop_bad(flat={'eeg':flat_threshold}, verbose=0)
         
         # Get train and test data
         if nb_k_fold < 1: # normal mode
